@@ -12,11 +12,20 @@ import type {
 export interface HtmlBuilderOptions {
   prettyPrint?: boolean;
   indent?: string;
+  streaming?: boolean;
+  chunkSize?: number;
+}
+
+export interface StreamingOptions {
+  chunkSize?: number;
+  write: (chunk: string) => Promise<void>;
 }
 
 const DEFAULT_OPTIONS: HtmlBuilderOptions = {
   prettyPrint: false,
   indent: '  ',
+  streaming: false,
+  chunkSize: 16384, // 16KB chunks
 };
 
 // HTML void elements that should not have closing tags
@@ -37,23 +46,78 @@ const VOID_ELEMENTS = new Set([
   'wbr',
 ]);
 
+// HTML escape optimization with lookup table and fast-path
+const HTML_ESCAPE_LOOKUP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;'
+};
+
+const HTML_ESCAPE_REGEX = /[&<>"']/g;
+const ATTR_ESCAPE_REGEX = /[&"']/g;
+
 /**
- * Escapes HTML special characters in text content
+ * Optimized HTML escape function with single-pass lookup
  */
 function escapeHtml(text: string): string {
+  // Fast path: no special characters
+  if (!HTML_ESCAPE_REGEX.test(text)) {
+    return text;
+  }
+  
+  // Reset regex state
+  HTML_ESCAPE_REGEX.lastIndex = 0;
+  
+  return text.replace(HTML_ESCAPE_REGEX, char => HTML_ESCAPE_LOOKUP[char]);
+}
+
+/**
+ * Manual loop optimization for hot paths (exported for potential use)
+ */
+export function escapeHtmlFast(text: string): string {
+  let result = '';
+  let lastIndex = 0;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const escaped = HTML_ESCAPE_LOOKUP[char];
+    
+    if (escaped) {
+      result += text.slice(lastIndex, i) + escaped;
+      lastIndex = i + 1;
+    }
+  }
+  
+  return lastIndex === 0 ? text : result + text.slice(lastIndex);
+}
+
+/**
+ * Optimized attribute escaping with fast-path
+ */
+function escapeAttribute(value: string): string {
+  // Fast path: no special characters
+  if (!ATTR_ESCAPE_REGEX.test(value)) {
+    return value;
+  }
+  
+  // Reset regex state
+  ATTR_ESCAPE_REGEX.lastIndex = 0;
+  
+  return value.replace(ATTR_ESCAPE_REGEX, char => HTML_ESCAPE_LOOKUP[char]);
+}
+
+/**
+ * Legacy escape function for backward compatibility (exported for testing)
+ */
+export function escapeHtmlLegacy(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-/**
- * Escapes HTML attribute values
- */
-function escapeAttribute(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -243,4 +307,215 @@ export function buildHtml(ast: FragmentNode, options: HtmlBuilderOptions = {}): 
   }
 
   return html;
+}
+
+/**
+ * Streaming HTML builder for memory-efficient processing
+ */
+export class StreamingHtmlBuilder {
+  private buffer = '';
+  private readonly chunkSize: number;
+  private readonly options: HtmlBuilderOptions;
+
+  constructor(options: HtmlBuilderOptions = {}) {
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.chunkSize = this.options.chunkSize || 16384;
+  }
+
+  /**
+   * Build HTML to a stream with chunked processing
+   */
+  async buildToStream(
+    ast: FragmentNode,
+    streamOptions: StreamingOptions
+  ): Promise<void> {
+    const { write } = streamOptions;
+    
+    await this.buildNodeToStream(ast, write, 0);
+    await this.flush(write);
+  }
+
+  /**
+   * Write buffered content to stream
+   */
+  private async writeBuffered(content: string, write: (chunk: string) => Promise<void>): Promise<void> {
+    this.buffer += content;
+    if (this.buffer.length >= this.chunkSize) {
+      await this.flush(write);
+    }
+  }
+
+  /**
+   * Flush remaining buffer content
+   */
+  private async flush(write: (chunk: string) => Promise<void>): Promise<void> {
+    if (this.buffer.length > 0) {
+      await write(this.buffer);
+      this.buffer = '';
+    }
+  }
+
+  /**
+   * Build a single node to stream
+   */
+  private async buildNodeToStream(
+    node: Node,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    switch (node.type) {
+      case 'Fragment':
+        await this.buildFragmentToStream(node as FragmentNode, write, depth);
+        break;
+
+      case 'Element':
+        await this.buildElementToStream(node as ElementNode, write, depth);
+        break;
+
+      case 'Component':
+        await this.buildComponentToStream(node as ComponentNode, write, depth);
+        break;
+
+      case 'Text':
+        await this.buildTextToStream(node as TextNode, write, depth);
+        break;
+
+      case 'Expression':
+        await this.buildExpressionToStream(node as ExpressionNode, write, depth);
+        break;
+
+      case 'Frontmatter':
+        // Frontmatter doesn't output HTML
+        break;
+
+      default:
+        // Unknown node type, skip it
+        break;
+    }
+  }
+
+  /**
+   * Build fragment to stream
+   */
+  private async buildFragmentToStream(
+    node: FragmentNode,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    for (const child of node.children) {
+      await this.buildNodeToStream(child, write, depth);
+    }
+  }
+
+  /**
+   * Build element to stream
+   */
+  private async buildElementToStream(
+    node: ElementNode,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    const indent = this.options.prettyPrint ? this.options.indent!.repeat(depth) : '';
+    const newline = this.options.prettyPrint ? '\n' : '';
+
+    await this.writeBuffered(`${indent}<${node.tag}${formatAttributes(node.attrs)}>`, write);
+
+    if (VOID_ELEMENTS.has(node.tag)) {
+      await this.writeBuffered(newline, write);
+      return;
+    }
+
+    // Handle inline vs block content
+    const hasBlockChildren = node.children.some(child => 
+      child.type === 'Element' || child.type === 'Component'
+    );
+
+    if (hasBlockChildren && this.options.prettyPrint) {
+      await this.writeBuffered(newline, write);
+    }
+
+    for (const child of node.children) {
+      await this.buildNodeToStream(child, write, depth + 1);
+    }
+
+    if (hasBlockChildren && this.options.prettyPrint) {
+      await this.writeBuffered(indent, write);
+    }
+
+    await this.writeBuffered(`</${node.tag}>${newline}`, write);
+  }
+
+  /**
+   * Build component to stream
+   */
+  private async buildComponentToStream(
+    node: ComponentNode,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    const indent = this.options.prettyPrint ? this.options.indent!.repeat(depth) : '';
+    const newline = this.options.prettyPrint ? '\n' : '';
+
+    await this.writeBuffered(
+      `${indent}<!-- Component: ${node.tag}${formatAttributes(node.attrs)} -->${newline}`,
+      write
+    );
+
+    for (const child of node.children) {
+      await this.buildNodeToStream(child, write, depth + 1);
+    }
+
+    await this.writeBuffered(
+      `${indent}<!-- /Component: ${node.tag} -->${newline}`,
+      write
+    );
+  }
+
+  /**
+   * Build text to stream
+   */
+  private async buildTextToStream(
+    node: TextNode,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    const indent = this.options.prettyPrint ? this.options.indent!.repeat(depth) : '';
+    const text = escapeHtml(node.value);
+
+    // Handle inline vs block text
+    if (this.options.prettyPrint && text.trim() !== text) {
+      await this.writeBuffered(`${indent}${text.trim()}\n`, write);
+    } else {
+      await this.writeBuffered(text, write);
+    }
+  }
+
+  /**
+   * Build expression to stream
+   */
+  private async buildExpressionToStream(
+    node: ExpressionNode,
+    write: (chunk: string) => Promise<void>,
+    depth: number
+  ): Promise<void> {
+    const indent = this.options.prettyPrint ? this.options.indent!.repeat(depth) : '';
+    const newline = this.options.prettyPrint ? '\n' : '';
+
+    await this.writeBuffered(
+      `${indent}<!-- Expression: ${escapeHtml(node.code)} -->${newline}`,
+      write
+    );
+  }
+}
+
+/**
+ * Convenience function to build HTML to stream
+ */
+export async function buildHtmlToStream(
+  ast: FragmentNode,
+  streamOptions: StreamingOptions,
+  builderOptions: HtmlBuilderOptions = {}
+): Promise<void> {
+  const builder = new StreamingHtmlBuilder(builderOptions);
+  await builder.buildToStream(ast, streamOptions);
 }
