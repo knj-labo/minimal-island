@@ -18,10 +18,7 @@
     "turbo": "^1.10.0",
     "typescript": "^5.4.0"
   },
-  "workspaces": [
-    "packages/*",
-    "examples/*"
-  ],
+  "workspaces": ["packages/*", "examples/*"],
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"

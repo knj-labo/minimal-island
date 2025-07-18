@@ -6,6 +6,7 @@ import type {
   Node,
 } from '../../types/ast.js';
 import { buildHtml } from '../html-builder.js';
+import { injectHmrCode } from './hmr.js';
 
 export interface TransformOptions {
   filename: string;
@@ -69,7 +70,10 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
   parts.push('');
   parts.push('export default { render, metadata };');
 
-  return parts.join('\\n');
+  const jsCode = parts.join('\\n');
+
+  // Inject HMR code in development mode
+  return injectHmrCode(jsCode, filename, dev);
 }
 
 /**

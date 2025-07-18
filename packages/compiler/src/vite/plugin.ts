@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { parseAstro } from '../parse.js';
+import { type AstroHmrState, analyzeAstForHmr, handleAstroHmr } from './hmr.js';
 import { transformAstroToJs } from './transform.js';
 
 export interface AstroVitePluginOptions {
@@ -30,6 +31,9 @@ const DEFAULT_OPTIONS: Required<AstroVitePluginOptions> = {
  */
 export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
   const opts = { ...DEFAULT_OPTIONS, ...options };
+
+  // Store HMR state for each file
+  const hmrStateMap = new Map<string, AstroHmrState>();
 
   return {
     name: 'astro-lite',
@@ -65,6 +69,14 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
           }
         }
 
+        // Analyze AST for HMR
+        const hmrState = analyzeAstForHmr(parseResult.ast, id);
+
+        // Store HMR state for later comparison
+        if (opts.dev) {
+          hmrStateMap.set(id, hmrState);
+        }
+
         // Transform to JavaScript module
         const transformed = transformAstroToJs(parseResult.ast, {
           filename: id,
@@ -85,15 +97,57 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
     },
 
     // Handle HMR for .astro files
-    handleHotUpdate(ctx) {
-      if (opts.extensions.some((ext) => ctx.file.endsWith(ext))) {
-        // Force reload the module
+    async handleHotUpdate(ctx) {
+      if (!opts.extensions.some((ext) => ctx.file.endsWith(ext))) {
+        return undefined;
+      }
+
+      if (!opts.dev) {
+        return [];
+      }
+
+      try {
+        // Read and parse the updated file
+        const content = await ctx.read();
+        const parseResult = parseAstro(content, { filename: ctx.file });
+
+        // Analyze new HMR state
+        const newHmrState = analyzeAstForHmr(parseResult.ast, ctx.file);
+        const oldHmrState = hmrStateMap.get(ctx.file);
+
+        // Handle HMR update
+        if (oldHmrState) {
+          const affectedModules = handleAstroHmr(
+            {
+              file: ctx.file,
+              modules: ctx.modules,
+              server: ctx.server,
+              read: ctx.read,
+            },
+            oldHmrState,
+            newHmrState
+          );
+
+          // Update stored state
+          hmrStateMap.set(ctx.file, newHmrState);
+
+          return affectedModules;
+        }
+
+        // First time seeing this file, store state and do full reload
+        hmrStateMap.set(ctx.file, newHmrState);
         ctx.server.ws.send({
           type: 'full-reload',
         });
-        return [];
+        return Array.from(ctx.modules);
+      } catch (error) {
+        // If parsing fails, do a full reload
+        console.error(`[astro-lite] HMR error for ${ctx.file}:`, error);
+        ctx.server.ws.send({
+          type: 'full-reload',
+        });
+        return Array.from(ctx.modules);
       }
-      return undefined;
     },
   };
 }
