@@ -1,9 +1,9 @@
 ---
 import Layout from '../layouts/Base.astro';
-const title = 'Hello';
+const _title = 'Hello';
 ---
 <Layout>
-  <h1>{title}</h1>
-  <p client:visible>Welcome to {title}!</p>
+  <h1>{_title}</h1>
+  <p client:visible>Welcome to {_title}!</p>
   <Counter client:load count={5} />
 </Layout>

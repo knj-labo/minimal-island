@@ -166,14 +166,14 @@ function parseAttributes(state: ParserState): [ParserState, Attr[]] {
 
       const fullValue = attrToken.value;
       const equalIndex = fullValue.indexOf('=');
-      
+
       let name: string;
       let value: string | boolean = true;
-      
+
       if (equalIndex !== -1) {
         name = fullValue.substring(0, equalIndex);
         value = fullValue.substring(equalIndex + 1);
-        
+
         // Remove quotes if present
         if (
           (value.startsWith('"') && value.endsWith('"')) ||

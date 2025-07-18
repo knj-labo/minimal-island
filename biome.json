@@ -7,12 +7,6 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-      "suspicious": {
-        "noExplicitAny": "off"
-      },
-      "style": {
-        "noUnusedTemplateLiteral": "off"
-      },
       "correctness": {
         "noUnusedVariables": "warn"
       }

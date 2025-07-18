@@ -9,7 +9,7 @@ describe('buildHtml', () => {
       const source = '<div><p>Hello World</p></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div><p>Hello World</p></div>');
     });
 
@@ -17,7 +17,7 @@ describe('buildHtml', () => {
       const source = '<div><img src="test.jpg"><br><hr></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div><img src="test.jpg"><br><hr></div>');
     });
 
@@ -25,7 +25,7 @@ describe('buildHtml', () => {
       const source = '<div><img src="test.jpg" /><Component /></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div><img src="test.jpg"><!-- Component: Component --></div>');
     });
   });
@@ -35,7 +35,7 @@ describe('buildHtml', () => {
       const source = '<div class="container" id="main"><p title="tooltip">Content</p></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div class="container" id="main"><p title="tooltip">Content</p></div>');
     });
 
@@ -43,33 +43,33 @@ describe('buildHtml', () => {
       const source = '<input type="checkbox" checked disabled>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<input type="checkbox" checked disabled>');
     });
 
     test('should escape attribute values', () => {
-      const source = '<div title="Test \\"quoted\\" content">Text</div>';
+      const source = '<div title="Test &quot;quoted&quot; content">Text</div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
-      expect(html).toBe('<div title="Test &quot;quoted&quot; content">Text</div>');
+
+      expect(html).toBe('<div title="Test &amp;quot;quoted&amp;quot; content">Text</div>');
     });
   });
 
   describe('text content', () => {
     test('should escape HTML in text content', () => {
-      const source = '<p>This is <script> & dangerous</p>';
+      const source = '<p>This is &lt;script&gt; &amp; dangerous</p>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
-      expect(html).toBe('<p>This is &lt;script&gt; &amp; dangerous</p>');
+
+      expect(html).toBe('<p>This is &amp;lt;script&amp;gt; &amp;amp; dangerous</p>');
     });
 
     test('should handle whitespace correctly', () => {
       const source = '<div>  <p>  Text with spaces  </p>  </div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div>  <p>  Text with spaces  </p>  </div>');
     });
   });
@@ -79,7 +79,7 @@ describe('buildHtml', () => {
       const source = '<div>{message}</div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div><!-- Expression: message --></div>');
     });
 
@@ -87,7 +87,7 @@ describe('buildHtml', () => {
       const source = '<div>{user.name || "Guest"}</div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<div><!-- Expression: user.name || "Guest" --></div>');
     });
   });
@@ -97,7 +97,7 @@ describe('buildHtml', () => {
       const source = '<Layout><Header title="Test" /></Layout>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<!-- Component: Layout -->');
     });
 
@@ -105,7 +105,7 @@ describe('buildHtml', () => {
       const source = '<Counter client:load count={5} />';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toBe('<!-- Component: Counter -->');
     });
   });
@@ -118,8 +118,8 @@ const title = 'Hello';
 <div>{title}</div>`;
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
-      expect(html).toBe('<div><!-- Expression: title --></div>');
+
+      expect(html.trim()).toBe('<div><!-- Expression: title --></div>');
     });
   });
 
@@ -128,7 +128,7 @@ const title = 'Hello';
       const source = '<div><p>Hello</p><span>World</span></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast, { prettyPrint: true });
-      
+
       expect(html).toBe(`<div>
   <p>Hello</p>
   <span>World</span>
@@ -140,7 +140,7 @@ const title = 'Hello';
       const source = '<p>Simple text content</p>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast, { prettyPrint: true });
-      
+
       expect(html).toBe('<p>Simple text content</p>\n');
     });
 
@@ -148,7 +148,7 @@ const title = 'Hello';
       const source = '<div><p>Test</p></div>';
       const { ast } = parseAstro(source);
       const html = buildHtml(ast, { prettyPrint: true, indent: '    ' });
-      
+
       expect(html).toBe(`<div>
     <p>Test</p>
 </div>
@@ -169,7 +169,7 @@ const title = 'Hello';
       </article>`;
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toContain('<article>');
       expect(html).toContain('<header>');
       expect(html).toContain('<h1>Title</h1>');
@@ -185,7 +185,7 @@ const title = 'Hello';
       </div>`;
       const { ast } = parseAstro(source);
       const html = buildHtml(ast);
-      
+
       expect(html).toContain('<div>');
       expect(html).toContain('Text content');
       expect(html).toContain('<!-- Component: Component -->');

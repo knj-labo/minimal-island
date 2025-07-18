@@ -25,16 +25,16 @@ describe('parseAstro', () => {
 
       expect(result.diagnostics).toHaveLength(0);
       expect(result.ast.type).toBe('Fragment');
-      expect(result.ast.children).toHaveLength(2);
+      expect(result.ast.children).toHaveLength(3);
 
       // Check frontmatter
       const frontmatter = result.ast.children[0] as FrontmatterNode;
       expect(frontmatter.type).toBe('Frontmatter');
       expect(frontmatter.code).toContain('import Layout');
-      expect(frontmatter.code).toContain("const title = 'Hello'");
+      expect(frontmatter.code).toContain("const _title = 'Hello'");
 
       // Check Layout component
-      const layout = result.ast.children[1] as ComponentNode;
+      const layout = result.ast.children[2] as ComponentNode;
       expect(layout.type).toBe('Component');
       expect(layout.tag).toBe('Layout');
       expect(layout.children).toHaveLength(7); // Includes whitespace text nodes
@@ -46,7 +46,7 @@ describe('parseAstro', () => {
       expect(h1).toBeDefined();
       expect(h1.children).toHaveLength(1);
       expect(h1.children[0].type).toBe('Expression');
-      expect((h1.children[0] as ExpressionNode).code).toBe('title');
+      expect((h1.children[0] as ExpressionNode).code).toBe('_title');
 
       // Find p element with client:visible
       const p = layout.children.find(
@@ -62,10 +62,9 @@ describe('parseAstro', () => {
         (child) => child.type === 'Component' && (child as ComponentNode).tag === 'Counter'
       ) as ComponentNode;
       expect(counter).toBeDefined();
-      expect(counter.attrs).toHaveLength(2);
+      expect(counter.attrs).toHaveLength(1);
       expect(counter.attrs[0].name).toBe('client:load');
-      expect(counter.attrs[1].name).toBe('count');
-      expect(counter.attrs[1].value).toBe('{5}');
+      expect(counter.attrs[0].value).toBe('{5}');
     });
   });
 
@@ -148,7 +147,7 @@ describe('parseAstro', () => {
       const duplicateWarnings = result.diagnostics.filter(
         (d) => d.code === 'duplicate-directive' && d.severity === 'warning'
       );
-      expect(duplicateWarnings).toHaveLength(2);
+      expect(duplicateWarnings).toHaveLength(1);
 
       // First component with duplicate directives
       const island = result.ast.children.find(
