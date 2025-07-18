@@ -1,0 +1,28 @@
+---
+const title = 'Welcome to Astro Lite';
+const description = 'A minimal implementation of Astro';
+---
+
+<html>
+  <head>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <header>
+      <h1>{title}</h1>
+      <p>{description}</p>
+    </header>
+    <main>
+      <section>
+        <h2>Features</h2>
+        <ul>
+          <li>Astro-like syntax parsing</li>
+          <li>Vite integration</li>
+          <li>Hot module replacement</li>
+          <li>Static HTML generation</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
