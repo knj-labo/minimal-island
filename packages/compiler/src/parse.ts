@@ -130,25 +130,33 @@ function parseAttributes(state: ParserState): [ParserState, Attr[]] {
       }
       seenNames.add(name);
 
-      // Check if next token is an attribute value
+      // Check if next token is an attribute value that belongs to this attribute
       const nextToken = peek(currentState);
       if (nextToken && nextToken.type === TokenType.AttributeValue) {
-        const [valueState, valueToken] = advance(currentState);
-        currentState = valueState;
+        // If the AttributeValue token contains an '=' and doesn't start with our attribute name,
+        // it's a separate attribute, not the value of this one
+        const fullValue = nextToken.value;
+        const equalIndex = fullValue.indexOf('=');
+        
+        if (equalIndex !== -1) {
+          const tokenAttrName = fullValue.substring(0, equalIndex);
+          // Only consume this token if it belongs to our current attribute
+          if (tokenAttrName === name) {
+            const [valueState, valueToken] = advance(currentState);
+            currentState = valueState;
 
-        if (valueToken) {
-          const fullValue = valueToken.value;
-          const equalIndex = fullValue.indexOf('=');
-          if (equalIndex !== -1) {
-            value = fullValue.substring(equalIndex + 1);
-            // Remove quotes if present
-            if (
-              (value.startsWith('"') && value.endsWith('"')) ||
-              (value.startsWith("'") && value.endsWith("'"))
-            ) {
-              value = value.slice(1, -1);
+            if (valueToken) {
+              value = fullValue.substring(equalIndex + 1);
+              // Remove quotes if present
+              if (
+                (value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))
+              ) {
+                value = value.slice(1, -1);
+              }
             }
           }
+          // If tokenAttrName !== name, don't consume the token - let it be processed separately
         }
       }
 

@@ -3,6 +3,7 @@
  * Handles Markdown, MDX, JSON, and YAML content
  */
 
+import { createContextualLogger } from '../utils/logger.js';
 import type {
   ContentEntry,
   ContentLoader,
@@ -69,7 +70,9 @@ export function parseFrontmatter(content: string): {
       content: bodyContent.trim(),
     };
   } catch (error) {
-    console.error('Failed to parse frontmatter:', error);
+    // Create a local logger for this function
+    const logger = createContextualLogger({ module: 'frontmatter-parser' });
+    logger.warn('Failed to parse frontmatter', { error: error.message });
     return {
       frontmatter: {},
       content: content.trim(),
@@ -330,6 +333,7 @@ export function createYamlLoader(_options: LoaderOptions): ContentLoader {
  * Auto-detect and create appropriate loader based on file extension
  */
 export function createAutoLoader(options: LoaderOptions): ContentLoader {
+  const logger = createContextualLogger({ module: 'content-loader' });
   const markdownLoader = createMarkdownLoader(options);
   const jsonLoader = createJsonLoader(options);
   const yamlLoader = createYamlLoader(options);

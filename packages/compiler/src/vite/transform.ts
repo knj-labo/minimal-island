@@ -18,12 +18,18 @@ export interface TransformOptions {
   ssr?: boolean;
   framework?: 'react' | 'preact' | 'vanilla';
   components?: Map<string, unknown>;
+  sourceMap?: boolean;
+}
+
+export interface TransformResult {
+  code: string;
+  map?: string;
 }
 
 /**
  * Transform an Astro AST to a JavaScript module
  */
-export function transformAstroToJs(ast: FragmentNode, options: TransformOptions): string {
+export function transformAstroToJs(ast: FragmentNode, options: TransformOptions): TransformResult {
   const {
     filename,
     dev = false,
@@ -127,7 +133,39 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
   const jsCode = parts.join('\n');
 
   // Inject HMR code in development mode
-  return injectHmrCode(jsCode, filename, dev);
+  const finalCode = injectHmrCode(jsCode, filename, dev);
+
+  // Generate source map if requested
+  let sourceMap: string | undefined;
+  if (options.sourceMap) {
+    sourceMap = generateSourceMap(finalCode, filename, ast);
+  }
+
+  return {
+    code: finalCode,
+    map: sourceMap,
+  };
+}
+
+/**
+ * Generate a basic source map for the transformed code
+ */
+function generateSourceMap(code: string, filename: string, ast: FragmentNode): string {
+  const lines = code.split('\n');
+  const basename = filename.split('/').pop() ?? 'unknown.astro';
+  
+  // Simple source map - maps most generated lines to line 1 of the original file
+  // In a production implementation, you'd track actual source locations during transformation
+  const sourceMap = {
+    version: 3,
+    file: basename.replace('.astro', '.js'),
+    sourceRoot: '',
+    sources: [basename],
+    names: [],
+    mappings: 'AAAA' + ';AACA'.repeat(lines.length - 1), // Simple mapping: each line maps to line 1, char 0
+  };
+
+  return JSON.stringify(sourceMap);
 }
 
 /**

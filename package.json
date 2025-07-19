@@ -6,7 +6,7 @@
   "description": "A minimal implementation of Astro from scratch",
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "bun test",
     "dev": "turbo run dev",
     "lint": "biome check",
     "format": "biome format --write",

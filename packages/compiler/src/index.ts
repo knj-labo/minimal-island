@@ -92,11 +92,8 @@ export {
 export {
   benchmark,
   compare,
-  BenchmarkSuite,
   createBenchmarkSuite,
-  MemoryTracker,
   createMemoryTracker,
-  RegressionDetector,
   createRegressionDetector,
   formatResults,
   quickBench,
@@ -104,14 +101,11 @@ export {
   measureTimeAsync,
 } from './utils/benchmark.js';
 export {
-  LazyError,
-  LazyParseError,
   createLazyError,
   createLazyParseError,
   createLazyTransformError,
   createLazyParseErrorWithContext,
   createLazyTransformErrorWithContext,
-  ErrorAggregator,
   createErrorAggregator,
   ErrorFactories,
 } from './utils/lazy-error.js';

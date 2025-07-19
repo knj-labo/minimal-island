@@ -3,6 +3,7 @@
  * Handles SSR and client-side rendering with hydration support
  */
 
+import { createContextualLogger } from '../utils/logger.js';
 import type {
   ComponentNode,
   ElementNode,
@@ -99,6 +100,9 @@ export interface ClientDirective {
  */
 export function createReactRenderer(options: ReactRendererOptions) {
   const { mode, hydrate = false, components = new Map(), props = {} } = options;
+
+  // Create logger instance
+  const logger = createContextualLogger({ renderer: 'react', mode });
 
   // Track hydration data
   const hydrationData: HydrationData = {
@@ -235,39 +239,12 @@ export function createReactRenderer(options: ReactRendererOptions) {
   function renderComponent(node: ComponentNode, context: Record<string, unknown>): unknown {
     const { tag, attrs, children } = node;
 
-    // Workaround: Fix parser bug where client:load gets wrong value
-    // TODO: Fix this in the parser itself
-    const fixedAttrs = [...attrs];
-    const clientLoadIndex = fixedAttrs.findIndex((attr) => attr.name === 'client:load');
-    if (
-      clientLoadIndex !== -1 &&
-      typeof fixedAttrs[clientLoadIndex].value === 'string' &&
-      fixedAttrs[clientLoadIndex].value.startsWith('{') &&
-      fixedAttrs[clientLoadIndex].value.endsWith('}')
-    ) {
-      // The client:load got the wrong value, redistribute attributes
-      const wrongValue = fixedAttrs[clientLoadIndex].value;
-      fixedAttrs[clientLoadIndex].value = true; // Fix client:load
-
-      // Insert missing attribute before the next one
-      if (clientLoadIndex + 1 < fixedAttrs.length) {
-        fixedAttrs.splice(clientLoadIndex + 1, 0, {
-          name: 'initialCount',
-          value: wrongValue,
-          loc: {
-            start: { line: 0, column: 0, offset: 0 },
-            end: { line: 0, column: 0, offset: 0 },
-          },
-        });
-      }
-    }
-
     // Check for client directive
-    const directive = extractClientDirective(fixedAttrs);
+    const directive = extractClientDirective(attrs);
 
     // Process props
     const componentProps: Record<string, unknown> = {};
-    for (const attr of fixedAttrs) {
+    for (const attr of attrs) {
       if (!attr.name.startsWith('client:')) {
         let value = attr.value;
 
@@ -283,7 +260,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
             } else if (/^\d+\.\d+$/.test(expression)) {
               value = expression; // Keep as string for HTML attributes
             } else {
-              console.error('Failed to evaluate attribute expression:', expression, error);
+              logger.warn('Failed to evaluate attribute expression', { expression, error: error.message });
               value = expression; // Fall back to the expression string
             }
           }
@@ -360,7 +337,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
         const result = evaluateExpression(code, context);
         return escapeHtml(String(result));
       } catch (error) {
-        console.error('Expression evaluation error:', error);
+        logger.warn('Expression evaluation error', { code, error: error.message });
         return `<!-- Expression error: ${escapeHtml(code)} -->`;
       }
     }
@@ -423,7 +400,7 @@ function renderComponentToString(
     // For now, return a placeholder
     return `<div><!-- ${Component.name ?? 'Component'} rendered here --></div>`;
   } catch (error) {
-    console.error('Component render error:', error);
+    logger.error('Component render error', error, { component: Component.name });
     return '<!-- Component render error -->';
   }
 }
@@ -465,7 +442,7 @@ function processFrontmatter(code: string): Record<string, unknown> {
       }
     }
   } catch (error) {
-    console.error('Frontmatter processing error:', error);
+    logger.warn('Frontmatter processing error', { error: error.message });
   }
 
   return context;

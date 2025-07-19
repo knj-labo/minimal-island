@@ -1,5 +1,6 @@
 import type { HmrContext, ModuleNode } from 'vite';
 import type { FragmentNode } from '../../types/ast.js';
+import { createContextualLogger } from '../utils/logger.js';
 import { hasClientDirectives } from './transform.js';
 
 export interface HmrUpdateContext {

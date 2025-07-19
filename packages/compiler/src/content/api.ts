@@ -3,6 +3,7 @@
  * Provides type-safe content querying and management
  */
 
+import { createContextualLogger } from '../utils/logger.js';
 import { createAutoLoader } from './loader.js';
 import { validateContentEntry } from './schema.js';
 import type {
@@ -121,6 +122,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
   // In-memory content store
   const contentStore = new Map<string, ContentEntry[]>();
   const collections = new Set<string>();
+  const logger = createContextualLogger({ module: 'content-manager' });
 
   /**
    * Load content for a collection
@@ -141,7 +143,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
       collections.add(name);
       return entries;
     } catch (error) {
-      console.error(`Failed to load collection "${name}":`, error);
+      logger.error(`Failed to load collection "${name}"`, error, { collection: name });
       return [];
     }
   }
@@ -177,7 +179,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
         if (config.schema) {
           const validation = validateContentEntry(entry, config.schema);
           if (!validation.valid) {
-            console.error(`Validation failed for ${entry.id}:`, validation.errors);
+            logger.error(`Validation failed for ${entry.id}`, { errors: validation.errors, entryId: entry.id });
             if (!dev) {
               continue; // Skip invalid entries in production
             }
@@ -194,7 +196,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
           entries.push(entry);
         }
       } catch (error) {
-        console.error(`Failed to load entry ${file}:`, error);
+        logger.error(`Failed to load entry ${file}`, error, { file });
         if (!dev) {
           // Skip failed entries in production
         }

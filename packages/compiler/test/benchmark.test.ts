@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { buildHtml, escapeHtmlFast, escapeHtmlLegacy } from '../src/html-builder.js';
 import { parseAstro } from '../src/parse.js';
 import { tokenize, tokenizeLegacy } from '../src/tokenizer.js';
-import { BenchmarkSuite, benchmark, compare, formatResults } from '../src/utils/benchmark.js';
+import { benchmark, compare, createBenchmarkSuite, formatResults } from '../src/utils/benchmark.js';
 import { clearAllPools, getPoolStats } from '../src/utils/object-pool.js';
 
 // Test data
@@ -147,7 +147,7 @@ describe('Performance Benchmarks', () => {
   });
 
   test('should run comprehensive benchmark suite', async () => {
-    const suite = new BenchmarkSuite();
+    const suite = createBenchmarkSuite();
 
     suite
       .add('Small File Parse', () => parseAstro(smallAstroFile), { iterations: 50 })

@@ -53,43 +53,43 @@ const title = "Hello World";
 <h1>{title}</h1>`;
       const { ast } = parseAstro(source);
 
-      const js = transformAstroToJs(ast, { filename: '/test.astro' });
+      const result = transformAstroToJs(ast, { filename: '/test.astro' });
 
-      expect(js).toContain('const title = "Hello World";');
-      expect(js).toContain('export async function render');
-      expect(js).toContain('export const metadata');
-      expect(js).toContain('export default { render, metadata }');
-      expect(js).toContain('<!-- Expression: title -->');
+      expect(result.code).toContain('const title = "Hello World";');
+      expect(result.code).toContain('export async function render');
+      expect(result.code).toContain('export const metadata');
+      expect(result.code).toContain('export default { render, metadata }');
+      expect(result.code).toContain('<!-- Expression: title -->');
     });
 
     test('should handle components without frontmatter', () => {
       const source = '<div>Hello World</div>';
       const { ast } = parseAstro(source);
 
-      const js = transformAstroToJs(ast, { filename: '/test.astro' });
+      const result = transformAstroToJs(ast, { filename: '/test.astro' });
 
-      expect(js).toContain('export async function render');
-      expect(js).toContain('<div>Hello World</div>');
-      expect(js).not.toContain('// Frontmatter');
+      expect(result.code).toContain('export async function render');
+      expect(result.code).toContain('<div>Hello World</div>');
+      expect(result.code).not.toContain('// Frontmatter');
     });
 
     test('should include metadata with filename', () => {
       const source = '<div>Test</div>';
       const { ast } = parseAstro(source);
 
-      const js = transformAstroToJs(ast, { filename: '/components/Test.astro' });
+      const result = transformAstroToJs(ast, { filename: '/components/Test.astro' });
 
-      expect(js).toContain('"/components/Test.astro"');
-      expect(js).toContain('dev: false');
+      expect(result.code).toContain('"/components/Test.astro"');
+      expect(result.code).toContain('dev: false');
     });
 
     test('should handle dev mode flag', () => {
       const source = '<div>Test</div>';
       const { ast } = parseAstro(source);
 
-      const js = transformAstroToJs(ast, { filename: '/test.astro', dev: true });
+      const result = transformAstroToJs(ast, { filename: '/test.astro', dev: true });
 
-      expect(js).toContain('dev: true');
+      expect(result.code).toContain('dev: true');
     });
   });
 

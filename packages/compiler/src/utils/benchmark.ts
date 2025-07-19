@@ -166,27 +166,6 @@ export function createBenchmarkSuite() {
   };
 }
 
-/**
- * Legacy class for backward compatibility
- * @deprecated Use createBenchmarkSuite() instead
- */
-export class BenchmarkSuite {
-  private suite = createBenchmarkSuite();
-
-  add(name: string, fn: () => unknown | Promise<unknown>, options?: BenchmarkOptions): this {
-    this.suite.add(name, fn, options);
-    return this;
-  }
-
-  async run(): Promise<BenchmarkResult[]> {
-    return this.suite.run();
-  }
-
-  clear(): this {
-    this.suite.clear();
-    return this;
-  }
-}
 
 /**
  * Format benchmark results for display
@@ -269,25 +248,6 @@ export function createMemoryTracker() {
   };
 }
 
-/**
- * Legacy class for backward compatibility
- * @deprecated Use createMemoryTracker() instead
- */
-export class MemoryTracker {
-  private tracker = createMemoryTracker();
-
-  snapshot(label: string): void {
-    this.tracker.snapshot(label);
-  }
-
-  getReport(): string {
-    return this.tracker.getReport();
-  }
-
-  clear(): void {
-    this.tracker.clear();
-  }
-}
 
 /**
  * Performance regression detector
@@ -337,37 +297,6 @@ export function createRegressionDetector() {
   };
 }
 
-/**
- * Legacy class for backward compatibility
- * @deprecated Use createRegressionDetector() instead
- */
-export class RegressionDetector {
-  private detector = createRegressionDetector();
-
-  setBaseline(name: string, result: BenchmarkResult): void {
-    this.detector.setBaseline(name, result);
-  }
-
-  checkRegression(
-    name: string,
-    result: BenchmarkResult,
-    threshold = 0.1
-  ): {
-    isRegression: boolean;
-    slowdown: number;
-    baseline?: BenchmarkResult;
-  } {
-    return this.detector.checkRegression(name, result, threshold);
-  }
-
-  saveBaselines(filepath: string): void {
-    this.detector.saveBaselines(filepath);
-  }
-
-  loadBaselines(filepath: string): void {
-    this.detector.loadBaselines(filepath);
-  }
-}
 
 /**
  * Quick performance test utility

@@ -40,31 +40,6 @@ export function createLazyError(messageFactory: LazyMessageFactory, name = 'Lazy
   return error;
 }
 
-/**
- * Legacy class for backward compatibility
- * @deprecated Use createLazyError() instead
- */
-export class LazyError extends Error {
-  private _message: string | undefined;
-  private messageFactory: LazyMessageFactory;
-
-  constructor(messageFactory: LazyMessageFactory, name = 'LazyError') {
-    super();
-    this.name = name;
-    this.messageFactory = messageFactory;
-  }
-
-  get message(): string {
-    if (this._message === undefined) {
-      this._message = this.messageFactory();
-    }
-    return this._message;
-  }
-
-  set message(value: string) {
-    this._message = value;
-  }
-}
 
 /**
  * Parse error with lazy message construction
@@ -108,29 +83,6 @@ export function createLazyTransformError(
   return error;
 }
 
-/**
- * Legacy classes for backward compatibility
- * @deprecated Use createLazyParseError() and createLazyTransformError() instead
- */
-export class LazyParseError extends LazyError {
-  constructor(
-    messageFactory: LazyMessageFactory,
-    public position: Position,
-    public filename = '<anonymous>'
-  ) {
-    super(messageFactory, 'ParseError');
-  }
-}
-
-export class LazyTransformError extends LazyError {
-  constructor(
-    messageFactory: LazyMessageFactory,
-    public filename: string,
-    public phase: string
-  ) {
-    super(messageFactory, 'TransformError');
-  }
-}
 
 /**
  * Creates a lazy parse error with position information
@@ -281,53 +233,6 @@ export function createErrorAggregator(maxErrors = 50, maxWarnings = 100) {
   };
 }
 
-/**
- * Legacy class for backward compatibility
- * @deprecated Use createErrorAggregator() instead
- */
-export class ErrorAggregator {
-  private aggregator = createErrorAggregator();
-
-  constructor(maxErrors = 50, maxWarnings = 100) {
-    this.aggregator = createErrorAggregator(maxErrors, maxWarnings);
-  }
-
-  addError(error: LazyError | LazyMessageFactory, position?: Position, filename?: string): void {
-    this.aggregator.addError(error, position, filename);
-  }
-
-  addWarning(
-    warning: LazyError | LazyMessageFactory,
-    position?: Position,
-    filename?: string
-  ): void {
-    this.aggregator.addWarning(warning, position, filename);
-  }
-
-  hasErrors(): boolean {
-    return this.aggregator.hasErrors();
-  }
-
-  hasWarnings(): boolean {
-    return this.aggregator.hasWarnings();
-  }
-
-  getErrors(): LazyError[] {
-    return this.aggregator.getErrors() as LazyError[];
-  }
-
-  getWarnings(): LazyError[] {
-    return this.aggregator.getWarnings() as LazyError[];
-  }
-
-  clear(): void {
-    this.aggregator.clear();
-  }
-
-  format(): string {
-    return this.aggregator.format();
-  }
-}
 
 /**
  * Common error message factories for performance

@@ -2,6 +2,7 @@ import type { Plugin } from 'vite';
 import { parseAstro } from '../parse.js';
 import { type AstroHmrState, analyzeAstForHmr, handleAstroHmr } from './hmr.js';
 import { transformAstroToJs } from './transform.js';
+import { createContextualLogger } from '../utils/logger.js';
 
 export interface AstroVitePluginOptions {
   /**
@@ -160,14 +161,24 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
   // Initialize cache
   const cache = createPluginCache();
 
+  // Create logger instance
+  const logger = createContextualLogger({ plugin: 'astro-vite' });
+
   // Cleanup interval
   const cleanupInterval = setInterval(() => {
     cache.cleanup();
   }, 60000); // Every minute
 
+  // Helper to check if a file is CSS-related
+  function isCssFile(path: string): boolean {
+    const cssExtensions = ['.css', '.scss', '.sass', '.less', '.styl', '.stylus'];
+    return cssExtensions.some(ext => path.endsWith(ext));
+  }
+
   // Extract dependencies from AST
-  function extractDependencies(ast: unknown): string[] {
+  function extractDependencies(ast: unknown): { all: string[]; css: string[] } {
     const dependencies: string[] = [];
+    const cssDependencies: string[] = [];
 
     function walkNode(node: unknown): void {
       if (!node) return;
@@ -195,7 +206,13 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
           for (const match of importMatches) {
             const pathMatch = match.match(/['"]([^'"]+)['"];?/);
             if (pathMatch) {
-              dependencies.push(pathMatch[1]);
+              const importPath = pathMatch[1];
+              dependencies.push(importPath);
+              
+              // Track CSS dependencies separately for enhanced HMR
+              if (isCssFile(importPath)) {
+                cssDependencies.push(importPath);
+              }
             }
           }
         }
@@ -204,7 +221,10 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
     walkNode(ast);
 
-    return [...new Set(dependencies)]; // Remove duplicates
+    return {
+      all: [...new Set(dependencies)], // Remove duplicates
+      css: [...new Set(cssDependencies)], // Remove duplicates
+    };
   }
 
   return {
@@ -259,12 +279,17 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
         // Analyze AST for HMR and extract dependencies
         const hmrState = analyzeAstForHmr(parseResult.ast, id);
-        const dependencies = extractDependencies(parseResult.ast);
+        const dependencyInfo = extractDependencies(parseResult.ast);
 
         // Store HMR state and dependencies for later comparison
         if (opts.dev) {
           hmrStateMap.set(id, hmrState);
-          cache.setDependencies(id, dependencies);
+          cache.setDependencies(id, dependencyInfo.all);
+          
+          // Log CSS dependencies for enhanced HMR
+          if (dependencyInfo.css.length > 0) {
+            logger.debug(`CSS dependencies found in ${id}`, { cssDeps: dependencyInfo.css });
+          }
         }
 
         // Transform to JavaScript module
@@ -272,11 +297,12 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
           filename: id,
           dev: opts.dev,
           prettyPrint: opts.prettyPrint,
+          sourceMap: true,
         });
 
         const result = {
-          code: transformed,
-          map: null, // TODO: Add source maps
+          code: transformed.code,
+          map: transformed.map ?? null,
         };
 
         // Cache the transform result
@@ -291,14 +317,45 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
       }
     },
 
-    // Handle HMR for .astro files
+    // Handle HMR for .astro files and CSS files
     async handleHotUpdate(ctx) {
-      if (!opts.extensions.some((ext) => ctx.file.endsWith(ext))) {
+      const isAstroFile = opts.extensions.some((ext) => ctx.file.endsWith(ext));
+      const isCssUpdate = isCssFile(ctx.file);
+      
+      if (!isAstroFile && !isCssUpdate) {
         return undefined;
       }
 
       if (!opts.dev) {
         return [];
+      }
+
+      // Handle CSS file updates
+      if (isCssUpdate) {
+        logger.debug(`CSS file updated: ${ctx.file}`);
+        
+        // Find all .astro files that depend on this CSS file
+        const dependentAstroFiles: string[] = [];
+        for (const [astroFile, deps] of cache['dependencyGraph'].entries()) {
+          if (deps.has(ctx.file)) {
+            dependentAstroFiles.push(astroFile);
+          }
+        }
+        
+        if (dependentAstroFiles.length > 0) {
+          logger.info(`CSS change affects ${dependentAstroFiles.length} Astro files`, { 
+            cssFile: ctx.file, 
+            affected: dependentAstroFiles 
+          });
+          
+          // Invalidate cache for affected files
+          for (const astroFile of dependentAstroFiles) {
+            cache.invalidate(astroFile);
+          }
+        }
+        
+        // Let Vite handle CSS HMR normally
+        return undefined;
       }
 
       try {
@@ -320,11 +377,16 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
         // Analyze new HMR state and dependencies
         const newHmrState = analyzeAstForHmr(parseResult.ast, ctx.file);
-        const newDependencies = extractDependencies(parseResult.ast);
+        const newDependencyInfo = extractDependencies(parseResult.ast);
         const oldHmrState = hmrStateMap.get(ctx.file);
 
         // Update dependencies in cache
-        cache.setDependencies(ctx.file, newDependencies);
+        cache.setDependencies(ctx.file, newDependencyInfo.all);
+        
+        // Enhanced HMR for CSS changes
+        if (newDependencyInfo.css.length > 0) {
+          logger.debug(`Updated CSS dependencies in ${ctx.file}`, { cssDeps: newDependencyInfo.css });
+        }
 
         // Get all affected modules from Vite
         const affectedModules = new Set<unknown>();
@@ -369,7 +431,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         return Array.from(affectedModules);
       } catch (error) {
         // If parsing fails, do a full reload
-        console.error(`[minimal-astro] HMR error for ${ctx.file}:`, error);
+        logger.error(`HMR error for ${ctx.file}`, error, { file: ctx.file });
 
         // Invalidate cache for this file
         cache.invalidate(ctx.file);

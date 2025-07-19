@@ -62,9 +62,11 @@ describe('parseAstro', () => {
         (child) => child.type === 'Component' && (child as ComponentNode).tag === 'Counter'
       ) as ComponentNode;
       expect(counter).toBeDefined();
-      expect(counter.attrs).toHaveLength(1);
+      expect(counter.attrs).toHaveLength(2);
       expect(counter.attrs[0].name).toBe('client:load');
-      expect(counter.attrs[0].value).toBe('{5}');
+      expect(counter.attrs[0].value).toBe(true);
+      expect(counter.attrs[1].name).toBe('count');
+      expect(counter.attrs[1].value).toBe('{5}');
     });
   });
 
