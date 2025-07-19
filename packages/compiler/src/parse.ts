@@ -29,7 +29,7 @@ function createInitialState(tokens: Token[], options: ParseOptions = {}): Parser
     tokens,
     current: 0,
     diagnostics: [],
-    filename: options.filename || '<anonymous>',
+    filename: options.filename ?? '<anonymous>',
   };
 }
 
@@ -293,7 +293,7 @@ function getImplicitlyClosedTags(tag: string): string[] {
     td: ['td', 'th'],
     th: ['td', 'th'],
   };
-  return implicitClosers[tag.toLowerCase()] || [];
+  return implicitClosers[tag.toLowerCase()] ?? [];
 }
 
 function parseChildren(state: ParserState, parentTag: string): [ParserState, Node[]] {
@@ -346,7 +346,7 @@ function parseChildren(state: ParserState, parentTag: string): [ParserState, Nod
       currentState,
       'unclosed-tag',
       `Unclosed tag <${parentTag}>`,
-      lastToken?.loc || {
+      lastToken?.loc ?? {
         start: { line: 1, column: 1, offset: 0 },
         end: { line: 1, column: 1, offset: 0 },
       }
@@ -388,7 +388,7 @@ function parseElement(state: ParserState): [ParserState, ElementNode | Component
     }
   }
 
-  const endLoc = currentState.tokens[currentState.current - 1]?.loc.end || openToken.loc.end;
+  const endLoc = currentState.tokens[currentState.current - 1]?.loc.end ?? openToken.loc.end;
   const loc: SourceSpan = {
     start: openToken.loc.start,
     end: endLoc,
@@ -452,8 +452,8 @@ function parse(state: ParserState): ParseResult {
     }
   }
 
-  const startLoc = children[0]?.loc.start || { line: 1, column: 1, offset: 0 };
-  const endLoc = children[children.length - 1]?.loc.end || startLoc;
+  const startLoc = children[0]?.loc.start ?? { line: 1, column: 1, offset: 0 };
+  const endLoc = children[children.length - 1]?.loc.end ?? startLoc;
 
   const ast: FragmentNode = {
     type: 'Fragment',

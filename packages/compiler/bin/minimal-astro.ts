@@ -72,8 +72,8 @@ async function main() {
   try {
     switch (command) {
       case 'build': {
-        const inputDir = commandArgs[0] || './src';
-        const outputDir = args.values.output || './dist';
+        const inputDir = commandArgs[0] ?? './src';
+        const outputDir = args.values.output ?? './dist';
 
         await build({
           inputDir,

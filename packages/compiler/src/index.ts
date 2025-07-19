@@ -68,7 +68,7 @@ export type {
   CollectionConfig,
   Schema,
   ContentEntry,
-  RenderResult,
+  ContentRenderResult,
   Heading,
   ReadingTime,
   ContentLoader,

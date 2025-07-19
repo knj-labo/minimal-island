@@ -344,6 +344,7 @@ Final content.`;
 
       // Mock the query implementation
       const query = manager.query('blog');
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock
       (query as any).entries = mockEntries;
 
       const publishedPosts = await query.where((entry) => entry.data.published).all();
@@ -365,6 +366,7 @@ Final content.`;
       });
 
       const query = manager.query('blog');
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock
       (query as any).entries = mockEntries;
 
       const sortedPosts = await query
@@ -389,6 +391,7 @@ Final content.`;
       });
 
       const query = manager.query('blog');
+      // biome-ignore lint/suspicious/noExplicitAny: Test mock
       (query as any).entries = mockEntries;
 
       const limitedPosts = await query.limit(2).all();

@@ -34,7 +34,7 @@ const DEFAULT_OPTIONS: Required<BenchmarkOptions> = {
  */
 export async function benchmark(
   name: string,
-  fn: () => any | Promise<any>,
+  fn: () => unknown | Promise<unknown>,
   options: BenchmarkOptions = {}
 ): Promise<BenchmarkResult> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -93,7 +93,7 @@ export async function benchmark(
  */
 export async function benchmarkThroughput(
   name: string,
-  fn: () => any | Promise<any>,
+  fn: () => unknown | Promise<unknown>,
   itemCount: number,
   options: BenchmarkOptions = {}
 ): Promise<BenchmarkResult> {
@@ -110,9 +110,9 @@ export async function benchmarkThroughput(
  */
 export async function compare(
   name1: string,
-  fn1: () => any | Promise<any>,
+  fn1: () => unknown | Promise<unknown>,
   name2: string,
-  fn2: () => any | Promise<any>,
+  fn2: () => unknown | Promise<unknown>,
   options: BenchmarkOptions = {}
 ): Promise<{
   baseline: BenchmarkResult;
@@ -137,12 +137,12 @@ export async function compare(
 export function createBenchmarkSuite() {
   const benchmarks: Array<{
     name: string;
-    fn: () => any | Promise<any>;
+    fn: () => unknown | Promise<unknown>;
     options?: BenchmarkOptions;
   }> = [];
 
   return {
-    add(name: string, fn: () => any | Promise<any>, options?: BenchmarkOptions) {
+    add(name: string, fn: () => unknown | Promise<unknown>, options?: BenchmarkOptions) {
       benchmarks.push({ name, fn, options });
       return this;
     },
@@ -173,7 +173,7 @@ export function createBenchmarkSuite() {
 export class BenchmarkSuite {
   private suite = createBenchmarkSuite();
 
-  add(name: string, fn: () => any | Promise<any>, options?: BenchmarkOptions): this {
+  add(name: string, fn: () => unknown | Promise<unknown>, options?: BenchmarkOptions): this {
     this.suite.add(name, fn, options);
     return this;
   }
@@ -374,7 +374,7 @@ export class RegressionDetector {
  */
 export async function quickBench(
   name: string,
-  fn: () => any | Promise<any>,
+  fn: () => unknown | Promise<unknown>,
   iterations = 10
 ): Promise<number> {
   const start = performance.now();

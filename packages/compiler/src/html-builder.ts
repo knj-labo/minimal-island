@@ -196,7 +196,7 @@ function buildFrontmatterHtml(
  * Builds HTML from an Element node
  */
 function buildElementHtml(node: ElementNode, options: HtmlBuilderOptions, depth: number): string {
-  const indent = options.prettyPrint ? (options.indent || '').repeat(depth) : '';
+  const indent = options.prettyPrint ? (options.indent ?? '').repeat(depth) : '';
   const newline = options.prettyPrint ? '\n' : '';
   const tag = node.tag.toLowerCase();
   const attrs = formatAttributes(node.attrs);
@@ -256,7 +256,7 @@ function buildComponentHtml(
   // Components will be handled by renderers in later phases
   // For now, render as empty string or comment
   if (options.prettyPrint) {
-    const indent = (options.indent || '').repeat(depth);
+    const indent = (options.indent ?? '').repeat(depth);
     return `${indent}<!-- Component: ${node.tag} -->\n`;
   }
   return `<!-- Component: ${node.tag} -->`;
@@ -266,7 +266,7 @@ function buildComponentHtml(
  * Builds HTML from a Text node
  */
 function buildTextHtml(node: TextNode, options: HtmlBuilderOptions, depth: number): string {
-  const indent = options.prettyPrint ? (options.indent || '').repeat(depth) : '';
+  const indent = options.prettyPrint ? (options.indent ?? '').repeat(depth) : '';
   const text = escapeHtml(node.value);
 
   // Skip indentation for text nodes that are part of inline content
@@ -288,7 +288,7 @@ function buildExpressionHtml(
   // Expressions will be evaluated by renderers in later phases
   // For now, render as empty string or comment
   if (options.prettyPrint) {
-    const indent = (options.indent || '').repeat(depth);
+    const indent = (options.indent ?? '').repeat(depth);
     return `${indent}<!-- Expression: ${node.code} -->\n`;
   }
   return `<!-- Expression: ${node.code} -->`;
@@ -314,7 +314,7 @@ export function buildHtml(ast: FragmentNode, options: HtmlBuilderOptions = {}): 
  */
 export function createStreamingHtmlBuilder(options: HtmlBuilderOptions = {}) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const chunkSize = opts.chunkSize || 16384;
+  const chunkSize = opts.chunkSize ?? 16384;
 
   return {
     /**
@@ -378,7 +378,7 @@ export function createStreamingHtmlBuilder(options: HtmlBuilderOptions = {}) {
       };
 
       const buildElementToStream = async (node: ElementNode, depth: number): Promise<void> => {
-        const indent = opts.prettyPrint ? opts.indent!.repeat(depth) : '';
+        const indent = opts.prettyPrint ? (opts.indent?.repeat(depth) ?? '') : '';
         const newline = opts.prettyPrint ? '\n' : '';
 
         await writeBuffered(`${indent}<${node.tag}${formatAttributes(node.attrs)}>`);
@@ -409,7 +409,7 @@ export function createStreamingHtmlBuilder(options: HtmlBuilderOptions = {}) {
       };
 
       const buildComponentToStream = async (node: ComponentNode, depth: number): Promise<void> => {
-        const indent = opts.prettyPrint ? opts.indent!.repeat(depth) : '';
+        const indent = opts.prettyPrint ? (opts.indent?.repeat(depth) ?? '') : '';
         const newline = opts.prettyPrint ? '\n' : '';
 
         await writeBuffered(
@@ -424,7 +424,7 @@ export function createStreamingHtmlBuilder(options: HtmlBuilderOptions = {}) {
       };
 
       const buildTextToStream = async (node: TextNode, depth: number): Promise<void> => {
-        const indent = opts.prettyPrint ? opts.indent!.repeat(depth) : '';
+        const indent = opts.prettyPrint ? (opts.indent?.repeat(depth) ?? '') : '';
         const text = escapeHtml(node.value);
 
         // Handle inline vs block text
@@ -439,7 +439,7 @@ export function createStreamingHtmlBuilder(options: HtmlBuilderOptions = {}) {
         node: ExpressionNode,
         depth: number
       ): Promise<void> => {
-        const indent = opts.prettyPrint ? opts.indent!.repeat(depth) : '';
+        const indent = opts.prettyPrint ? (opts.indent?.repeat(depth) ?? '') : '';
         const newline = opts.prettyPrint ? '\n' : '';
 
         await writeBuffered(`${indent}<!-- Expression: ${escapeHtml(node.code)} -->${newline}`);

@@ -374,8 +374,8 @@ export function createContextualError(messageFactory: LazyMessageFactory, contex
 
       // Get the line content for better context
       const lines = source.split('\n');
-      const line = lines[position.line - 1] || '';
-      const pointer = ' '.repeat(position.column - 1) + '^';
+      const line = lines[position.line - 1] ?? '';
+      const pointer = `${' '.repeat(position.column - 1)}^`;
 
       return [
         `${phase} error in ${filename}:${position.line}:${position.column}`,
@@ -395,7 +395,7 @@ export function createContextualError(messageFactory: LazyMessageFactory, contex
  */
 export function createLightweightError(
   messageFactory: LazyMessageFactory,
-  metadata: Record<string, any> = {}
+  metadata: Record<string, unknown> = {}
 ) {
   const error = createLazyError(messageFactory);
   Object.assign(error, metadata);

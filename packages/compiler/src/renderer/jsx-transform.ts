@@ -134,7 +134,7 @@ export function createJSXTransformer(options: JSXTransformOptions = {}) {
     const indent = getIndent(context.depth);
 
     return `<${opts.fragmentName}>
-${children.map((child) => indent + '  ' + child).join('\n')}
+${children.map((child) => `${indent}  ${child}`).join('\n')}
 ${indent}</${opts.fragmentName}>`;
   }
 
@@ -167,7 +167,7 @@ ${indent}</${opts.fragmentName}>`;
         if (child.startsWith('{') || child.startsWith('"')) {
           return child;
         }
-        return '\n' + childrenIndent + child;
+        return `\n${childrenIndent}${child}`;
       })
       .join('');
 
@@ -175,7 +175,7 @@ ${indent}</${opts.fragmentName}>`;
       (child) => !child.startsWith('{') && !child.startsWith('"')
     );
 
-    return `<${tag}${props}>${needsNewline ? childrenStr + '\n' + indent : childrenStr}</${tag}>`;
+    return `<${tag}${props}>${needsNewline ? `${childrenStr}\n${indent}` : childrenStr}</${tag}>`;
   }
 
   /**
@@ -217,7 +217,7 @@ ${indent}</${opts.fragmentName}>`;
 
     const indent = getIndent(context.depth);
     const childrenIndent = getIndent(context.depth + 1);
-    const childrenStr = transformedChildren.map((child) => '\n' + childrenIndent + child).join('');
+    const childrenStr = transformedChildren.map((child) => `\n${childrenIndent}${child}`).join('');
 
     return `<${tag}${props}>${childrenStr}\n${indent}</${tag}>`;
   }
@@ -225,7 +225,7 @@ ${indent}</${opts.fragmentName}>`;
   /**
    * Transform text node
    */
-  function transformText(node: TextNode, context: TransformContext): string {
+  function transformText(node: TextNode, _context: TransformContext): string {
     const { value } = node;
 
     // Escape special characters
@@ -259,7 +259,7 @@ ${indent}</${opts.fragmentName}>`;
   /**
    * Build props string from attributes
    */
-  function buildProps(attrs: any[]): string {
+  function buildProps(attrs: Array<{ name: string; value: string | boolean }>): string {
     if (attrs.length === 0) {
       return '';
     }
@@ -296,7 +296,7 @@ ${indent}</${opts.fragmentName}>`;
       })
       .filter(Boolean);
 
-    return props.length > 0 ? ' ' + props.join(' ') : '';
+    return props.length > 0 ? ` ${props.join(' ')}` : '';
   }
 
   /**
@@ -306,7 +306,7 @@ ${indent}</${opts.fragmentName}>`;
     componentName: string,
     props: string,
     directive: string,
-    directiveValue: any,
+    directiveValue: string | boolean | undefined,
     children: Node[],
     context: TransformContext
   ): string {
@@ -330,7 +330,7 @@ ${indent}</${opts.fragmentName}>`;
     }
 
     const childrenStr = transformedChildren
-      .map((child) => '\n' + getIndent(context.depth + 2) + child)
+      .map((child) => `\n${getIndent(context.depth + 2)}${child}`)
       .join('');
 
     return `<div ${hydrationProps}>
@@ -371,12 +371,12 @@ ${indent}</div>`;
   /**
    * Wrap JSX in component function
    */
-  function wrapInComponent(jsxCode: string, context: TransformContext): string {
+  function wrapInComponent(jsxCode: string, _context: TransformContext): string {
     return `export default function AstroComponent(props) {
   return (
     ${jsxCode
       .split('\n')
-      .map((line) => '    ' + line)
+      .map((line) => `    ${line}`)
       .join('\n')
       .trim()}
   );
@@ -396,15 +396,17 @@ ${indent}</div>`;
   function extractVariables(code: string, context: TransformContext): void {
     // Simple regex to find potential variable names
     const varPattern = /\b([a-zA-Z_$][a-zA-Z0-9_$]*)\b/g;
-    let match;
+    let match: RegExpExecArray | null = varPattern.exec(code);
 
-    while ((match = varPattern.exec(code)) !== null) {
+    while (match) {
       const varName = match[1];
 
       // Skip JavaScript keywords and known globals
       if (!isKeywordOrGlobal(varName)) {
         context.variables.add(varName);
       }
+
+      match = varPattern.exec(code);
     }
   }
 

@@ -38,12 +38,12 @@ interface CacheEntry<T> {
 
 interface TransformCache {
   code: string;
-  map: any;
+  map: unknown;
 }
 
 interface ParseCache {
-  ast: any;
-  diagnostics: any[];
+  ast: unknown;
+  diagnostics: unknown[];
 }
 
 // Fast hash function for cache keys
@@ -62,7 +62,7 @@ function createPluginCache(maxAge = 5 * 60 * 1000) {
   const transformCache = new Map<string, CacheEntry<TransformCache>>();
   const dependencyGraph = new Map<string, Set<string>>();
 
-  const isExpired = (entry: CacheEntry<any>): boolean => {
+  const isExpired = (entry: CacheEntry<unknown>): boolean => {
     return Date.now() - entry.timestamp > maxAge;
   };
 
@@ -78,7 +78,7 @@ function createPluginCache(maxAge = 5 * 60 * 1000) {
       return null;
     },
 
-    setAst(id: string, code: string, ast: any, diagnostics: any[]): void {
+    setAst(id: string, code: string, ast: unknown, diagnostics: unknown[]): void {
       const hash = quickHash(code);
       astCache.set(id, {
         value: { ast, diagnostics },
@@ -166,10 +166,10 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
   }, 60000); // Every minute
 
   // Extract dependencies from AST
-  function extractDependencies(ast: any): string[] {
+  function extractDependencies(ast: unknown): string[] {
     const dependencies: string[] = [];
 
-    function walkNode(node: any) {
+    function walkNode(node: unknown): void {
       if (!node) return;
 
       if (node.type === 'Component' && node.tag) {
@@ -185,16 +185,19 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
     // Extract from frontmatter
     if (ast.children) {
-      const frontmatter = ast.children.find((child: any) => child.type === 'Frontmatter');
-      if (frontmatter && frontmatter.code) {
+      const frontmatter = ast.children.find(
+        // biome-ignore lint/suspicious/noExplicitAny: Required for AST traversal
+        (child: unknown) => (child as any).type === 'Frontmatter'
+      );
+      if (frontmatter?.code) {
         const importMatches = frontmatter.code.match(/import\s+[^'"]+['"]([^'"]+)['"];?/g);
         if (importMatches) {
-          importMatches.forEach((match: string) => {
+          for (const match of importMatches) {
             const pathMatch = match.match(/['"]([^'"]+)['"];?/);
             if (pathMatch) {
               dependencies.push(pathMatch[1]);
             }
-          });
+          }
         }
       }
     }
@@ -229,7 +232,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         }
 
         // Check AST cache
-        let parseResult;
+        let parseResult: ParseCache;
         const cachedAst = cache.getAst(id, code);
         if (cachedAst) {
           parseResult = cachedAst;
@@ -307,7 +310,9 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         const allAffected = [ctx.file, ...dependents];
 
         // Invalidate cache for all affected files
-        allAffected.forEach((file) => cache.invalidate(file));
+        for (const file of allAffected) {
+          cache.invalidate(file);
+        }
 
         // Read and parse the updated file
         const content = await ctx.read();
@@ -322,10 +327,12 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         cache.setDependencies(ctx.file, newDependencies);
 
         // Get all affected modules from Vite
-        const affectedModules = new Set<any>();
+        const affectedModules = new Set<unknown>();
 
         // Add the changed file's modules
-        ctx.modules.forEach((mod) => affectedModules.add(mod));
+        for (const mod of ctx.modules) {
+          affectedModules.add(mod);
+        }
 
         // Add modules for dependent files
         for (const depFile of dependents) {

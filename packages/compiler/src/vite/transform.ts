@@ -7,7 +7,8 @@ import type {
 } from '../../types/ast.js';
 import { buildHtml } from '../html-builder.js';
 import { astToJSX } from '../renderer/jsx-transform.js';
-import { type HydrationData, createSSRRenderer } from '../renderer/react.js';
+import { createSSRRenderer } from '../renderer/react.js';
+// type HydrationData available if needed
 import { injectHmrCode } from './hmr.js';
 
 export interface TransformOptions {
@@ -16,7 +17,7 @@ export interface TransformOptions {
   prettyPrint?: boolean;
   ssr?: boolean;
   framework?: 'react' | 'preact' | 'vanilla';
-  components?: Map<string, any>;
+  components?: Map<string, unknown>;
 }
 
 /**
@@ -27,7 +28,7 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
     filename,
     dev = false,
     prettyPrint = true,
-    ssr = true,
+    ssr: _ssr = true,
     framework = 'vanilla',
     components = new Map(),
   } = options;
@@ -105,7 +106,7 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
       jsxImportSource: framework,
     });
 
-    parts.push('  ' + jsxCode.split('\n').join('\n  '));
+    parts.push(`  ${jsxCode.split('\n').join('\n  ')}`);
     parts.push('}');
   }
 
@@ -121,9 +122,7 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
 
   // Default export for easier imports
   parts.push('');
-  parts.push(
-    'export default { render, metadata' + (framework !== 'vanilla' ? ', Component' : '') + ' };'
-  );
+  parts.push(`export default { render, metadata${framework !== 'vanilla' ? ', Component' : ''} };`);
 
   const jsCode = parts.join('\n');
 
@@ -155,14 +154,14 @@ export function extractClientScript(
     parts.push('    import("@minimal-astro/compiler/runtime/hydrate").then(({ autoHydrate }) => {');
     parts.push('      autoHydrate({');
     parts.push('        runtime: "react",');
-    parts.push('        components: window.__ASTRO_COMPONENTS__ || new Map(),');
+    parts.push('        components: window.__ASTRO_COMPONENTS__ ?? new Map(),');
     parts.push('      });');
     parts.push('    });');
   } else if (framework === 'preact') {
     parts.push('    import("@minimal-astro/compiler/runtime/hydrate").then(({ autoHydrate }) => {');
     parts.push('      autoHydrate({');
     parts.push('        runtime: "preact",');
-    parts.push('        components: window.__ASTRO_COMPONENTS__ || new Map(),');
+    parts.push('        components: window.__ASTRO_COMPONENTS__ ?? new Map(),');
     parts.push('      });');
     parts.push('    });');
   }

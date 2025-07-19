@@ -139,7 +139,7 @@ export const diagnosticPool = createObjectPool(
  * Pool for arrays (frequently allocated for AST children)
  */
 export const arrayPool = createObjectPool(
-  () => [] as any[],
+  () => [] as unknown[],
   (arr) => {
     arr.length = 0;
   },
@@ -150,7 +150,7 @@ export const arrayPool = createObjectPool(
  * Pool for Set objects (used in dependency tracking)
  */
 export const setPool = createObjectPool(
-  () => new Set<any>(),
+  () => new Set<unknown>(),
   (set) => {
     set.clear();
   },
@@ -161,7 +161,7 @@ export const setPool = createObjectPool(
  * Pool for Map objects (used in caching)
  */
 export const mapPool = createObjectPool(
-  () => new Map<any, any>(),
+  () => new Map<unknown, unknown>(),
   (map) => {
     map.clear();
   },

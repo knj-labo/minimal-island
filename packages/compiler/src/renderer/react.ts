@@ -13,6 +13,9 @@ import type {
   TextNode,
 } from '../../types/ast.js';
 
+// Component type definition
+type ComponentType<P = Record<string, unknown>> = (props: P) => unknown;
+
 export interface ReactRendererOptions {
   /**
    * Mode of rendering
@@ -27,19 +30,19 @@ export interface ReactRendererOptions {
   /**
    * Component registry for resolving imports
    */
-  components?: Map<string, any>;
+  components?: Map<string, ComponentType>;
 
   /**
    * Props to pass to the root component
    */
-  props?: Record<string, any>;
+  props?: Record<string, unknown>;
 }
 
 export interface RenderResult {
   /**
    * The rendered HTML string (SSR) or React element (client)
    */
-  output: string | any;
+  output: string | unknown;
 
   /**
    * Hydration data for client-side
@@ -56,7 +59,7 @@ export interface HydrationData {
   /**
    * Component props for hydration
    */
-  props: Record<string, any>;
+  props: Record<string, unknown>;
 
   /**
    * Client directives and their configurations
@@ -88,7 +91,7 @@ export interface ClientDirective {
   /**
    * Props to hydrate with
    */
-  props: Record<string, any>;
+  props: Record<string, unknown>;
 }
 
 /**
@@ -117,7 +120,9 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Extract client directive from attributes
    */
-  function extractClientDirective(attrs: any[]): ClientDirective | null {
+  function extractClientDirective(
+    attrs: Array<{ name: string; value: string | boolean }>
+  ): ClientDirective | null {
     const clientAttr = attrs.find((attr) => attr.name.startsWith('client:'));
     if (!clientAttr) return null;
 
@@ -135,7 +140,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render AST node to React
    */
-  function renderNode(node: Node, context: any = {}): any {
+  function renderNode(node: Node, context: Record<string, unknown> = {}): unknown {
     switch (node.type) {
       case 'Fragment':
         return renderFragment(node as FragmentNode, context);
@@ -164,7 +169,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render fragment node
    */
-  function renderFragment(node: FragmentNode, context: any): any {
+  function renderFragment(node: FragmentNode, context: Record<string, unknown>): unknown {
     const children = node.children
       .map((child) => renderNode(child, context))
       .filter((child) => child !== null && child !== '');
@@ -186,11 +191,11 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render HTML element
    */
-  function renderElement(node: ElementNode, context: any): any {
+  function renderElement(node: ElementNode, context: Record<string, unknown>): unknown {
     const { tag, attrs, children } = node;
 
     // Process attributes
-    const attributes: Record<string, any> = {};
+    const attributes: Record<string, unknown> = {};
     for (const attr of attrs) {
       attributes[attr.name] = attr.value;
     }
@@ -209,7 +214,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
         .filter(Boolean)
         .join(' ');
 
-      const openTag = `<${tag}${attrString ? ' ' + attrString : ''}>`;
+      const openTag = `<${tag}${attrString ? ` ${attrString}` : ''}>`;
       const closeTag = `</${tag}>`;
 
       if (isVoidElement(tag)) {
@@ -227,24 +232,32 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render component node
    */
-  function renderComponent(node: ComponentNode, context: any): any {
+  function renderComponent(node: ComponentNode, context: Record<string, unknown>): unknown {
     const { tag, attrs, children } = node;
 
     // Workaround: Fix parser bug where client:load gets wrong value
     // TODO: Fix this in the parser itself
     const fixedAttrs = [...attrs];
-    const clientLoadIndex = fixedAttrs.findIndex(attr => attr.name === 'client:load');
-    if (clientLoadIndex !== -1 && typeof fixedAttrs[clientLoadIndex].value === 'string' && 
-        fixedAttrs[clientLoadIndex].value.startsWith('{') && fixedAttrs[clientLoadIndex].value.endsWith('}')) {
+    const clientLoadIndex = fixedAttrs.findIndex((attr) => attr.name === 'client:load');
+    if (
+      clientLoadIndex !== -1 &&
+      typeof fixedAttrs[clientLoadIndex].value === 'string' &&
+      fixedAttrs[clientLoadIndex].value.startsWith('{') &&
+      fixedAttrs[clientLoadIndex].value.endsWith('}')
+    ) {
       // The client:load got the wrong value, redistribute attributes
       const wrongValue = fixedAttrs[clientLoadIndex].value;
       fixedAttrs[clientLoadIndex].value = true; // Fix client:load
-      
+
       // Insert missing attribute before the next one
       if (clientLoadIndex + 1 < fixedAttrs.length) {
         fixedAttrs.splice(clientLoadIndex + 1, 0, {
           name: 'initialCount',
-          value: wrongValue
+          value: wrongValue,
+          loc: {
+            start: { line: 0, column: 0, offset: 0 },
+            end: { line: 0, column: 0, offset: 0 },
+          },
         });
       }
     }
@@ -253,7 +266,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
     const directive = extractClientDirective(fixedAttrs);
 
     // Process props
-    const componentProps: Record<string, any> = {};
+    const componentProps: Record<string, unknown> = {};
     for (const attr of fixedAttrs) {
       if (!attr.name.startsWith('client:')) {
         let value = attr.value;
@@ -264,11 +277,11 @@ export function createReactRenderer(options: ReactRendererOptions) {
           try {
             value = evaluateExpression(expression, context);
           } catch (error) {
-            // For simple numbers, try parsing directly
+            // For simple numbers, try parsing directly but keep as strings for attributes
             if (/^\d+$/.test(expression)) {
-              value = Number.parseInt(expression, 10);
+              value = expression; // Keep as string for HTML attributes
             } else if (/^\d+\.\d+$/.test(expression)) {
-              value = Number.parseFloat(expression);
+              value = expression; // Keep as string for HTML attributes
             } else {
               console.error('Failed to evaluate attribute expression:', expression, error);
               value = expression; // Fall back to the expression string
@@ -324,7 +337,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render text node
    */
-  function renderText(node: TextNode, context: any): any {
+  function renderText(node: TextNode, _context: Record<string, unknown>): unknown {
     const { value } = node;
 
     if (mode === 'ssr') {
@@ -338,7 +351,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
   /**
    * Render expression node
    */
-  function renderExpression(node: ExpressionNode, context: any): any {
+  function renderExpression(node: ExpressionNode, context: Record<string, unknown>): unknown {
     const { code } = node;
 
     if (mode === 'ssr') {
@@ -388,12 +401,12 @@ export function createReactRenderer(options: ReactRendererOptions) {
     /**
      * Render a single component (useful for testing)
      */
-    renderComponent(Component: any, props: Record<string, any>): string {
+    renderComponent(Component: ComponentType, props: Record<string, unknown>): string {
       if (mode === 'ssr') {
         return renderComponentToString(Component, props);
       }
 
-      return `React.createElement(${Component.name || 'Component'}, ${JSON.stringify(props)})`;
+      return `React.createElement(${Component.name ?? 'Component'}, ${JSON.stringify(props)})`;
     },
   };
 }
@@ -401,21 +414,24 @@ export function createReactRenderer(options: ReactRendererOptions) {
 /**
  * Helper to render React component to string (SSR)
  */
-function renderComponentToString(Component: any, props: Record<string, any>): string {
+function renderComponentToString(
+  Component: ComponentType,
+  _props: Record<string, unknown>
+): string {
   // This is a simplified version - in production, you'd use ReactDOMServer
   try {
     // For now, return a placeholder
-    return `<div><!-- ${Component.name || 'Component'} rendered here --></div>`;
+    return `<div><!-- ${Component.name ?? 'Component'} rendered here --></div>`;
   } catch (error) {
     console.error('Component render error:', error);
-    return `<!-- Component render error -->`;
+    return '<!-- Component render error -->';
   }
 }
 
 /**
  * Helper to evaluate expressions
  */
-function evaluateExpression(code: string, context: Record<string, any>): any {
+function evaluateExpression(code: string, context: Record<string, unknown>): unknown {
   // Create a function with context variables
   const contextKeys = Object.keys(context);
   const contextValues = Object.values(context);
@@ -423,7 +439,7 @@ function evaluateExpression(code: string, context: Record<string, any>): any {
   try {
     const fn = new Function(...contextKeys, `return (${code})`);
     return fn(...contextValues);
-  } catch (error) {
+  } catch (_error) {
     throw new Error(`Failed to evaluate expression: ${code}`);
   }
 }
@@ -431,9 +447,9 @@ function evaluateExpression(code: string, context: Record<string, any>): any {
 /**
  * Process frontmatter code
  */
-function processFrontmatter(code: string): Record<string, any> {
+function processFrontmatter(code: string): Record<string, unknown> {
   // This is simplified - in production, you'd properly parse and execute
-  const context: Record<string, any> = {};
+  const context: Record<string, unknown> = {};
 
   try {
     // Extract simple variable declarations (with or without semicolon)

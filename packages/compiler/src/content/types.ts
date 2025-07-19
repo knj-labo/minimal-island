@@ -56,10 +56,10 @@ export interface Schema {
   /**
    * Validation rules
    */
-  validate?: (value: any) => boolean | string;
+  validate?: (value: unknown) => boolean | string;
 }
 
-export interface ContentEntry<T = any> {
+export interface ContentEntry<T = Record<string, unknown>> {
   /**
    * Unique ID for the entry
    */
@@ -93,10 +93,10 @@ export interface ContentEntry<T = any> {
   /**
    * Rendered content
    */
-  render?: () => Promise<RenderResult>;
+  render?: () => Promise<ContentRenderResult>;
 }
 
-export interface RenderResult {
+export interface ContentRenderResult {
   /**
    * Rendered HTML content
    */
@@ -149,7 +149,7 @@ export type ContentTransformer = (entry: ContentEntry) => ContentEntry | Promise
 /**
  * Query builder types
  */
-export interface ContentQuery<T = any> {
+export interface ContentQuery<T = Record<string, unknown>> {
   /**
    * Filter entries
    */
@@ -193,22 +193,28 @@ export interface ContentAPI {
   /**
    * Get a collection
    */
-  getCollection<T = any>(name: string): Promise<ContentEntry<T>[]>;
+  getCollection<T = Record<string, unknown>>(name: string): Promise<ContentEntry<T>[]>;
 
   /**
    * Get entry by ID
    */
-  getEntry<T = any>(collection: string, id: string): Promise<ContentEntry<T> | null>;
+  getEntry<T = Record<string, unknown>>(
+    collection: string,
+    id: string
+  ): Promise<ContentEntry<T> | null>;
 
   /**
    * Get entry by slug
    */
-  getEntryBySlug<T = any>(collection: string, slug: string): Promise<ContentEntry<T> | null>;
+  getEntryBySlug<T = Record<string, unknown>>(
+    collection: string,
+    slug: string
+  ): Promise<ContentEntry<T> | null>;
 
   /**
    * Query builder
    */
-  query<T = any>(collection: string): ContentQuery<T>;
+  query<T = Record<string, unknown>>(collection: string): ContentQuery<T>;
 
   /**
    * Get all collections

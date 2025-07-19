@@ -5,6 +5,7 @@
     "outDir": "./dist",
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "types": ["bun-types"],
+    "lib": ["ES2020", "DOM"],
     "noEmit": false,
     "allowImportingTsExtensions": false
   },

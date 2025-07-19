@@ -19,7 +19,7 @@ export interface ValidationResult {
   /**
    * Validated and coerced data
    */
-  data?: any;
+  data?: unknown;
 }
 
 export interface ValidationError {
@@ -41,7 +41,7 @@ export interface ValidationError {
   /**
    * Actual value
    */
-  actual?: any;
+  actual?: unknown;
 }
 
 /**
@@ -49,7 +49,7 @@ export interface ValidationError {
  */
 export function createSchemaValidator(schema: Schema) {
   return {
-    validate(data: any): ValidationResult {
+    validate(data: unknown): ValidationResult {
       const errors: ValidationError[] = [];
       const validatedData = validateValue(data, schema, '', errors);
 
@@ -65,7 +65,12 @@ export function createSchemaValidator(schema: Schema) {
 /**
  * Validate a value against a schema
  */
-function validateValue(value: any, schema: Schema, path: string, errors: ValidationError[]): any {
+function validateValue(
+  value: unknown,
+  schema: Schema,
+  path: string,
+  errors: ValidationError[]
+): unknown {
   // Handle null/undefined
   if (value == null) {
     if (schema.required?.length) {
@@ -113,11 +118,11 @@ function validateValue(value: any, schema: Schema, path: string, errors: Validat
  * Validate string value
  */
 function validateString(
-  value: any,
+  value: unknown,
   schema: Schema,
   path: string,
   errors: ValidationError[]
-): string | any {
+): string | unknown {
   if (typeof value !== 'string') {
     errors.push({
       path,
@@ -148,17 +153,18 @@ function validateString(
  * Validate number value
  */
 function validateNumber(
-  value: any,
+  value: unknown,
   schema: Schema,
   path: string,
   errors: ValidationError[]
-): number | any {
+): number | unknown {
   // Try to coerce string numbers
-  if (typeof value === 'string' && !isNaN(Number(value))) {
-    value = Number(value);
+  if (typeof value === 'string' && !Number.isNaN(Number(value))) {
+    const numValue = Number(value);
+    return numValue;
   }
 
-  if (typeof value !== 'number' || isNaN(value)) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
     errors.push({
       path,
       message: 'Expected number',
@@ -188,37 +194,38 @@ function validateNumber(
  * Validate boolean value
  */
 function validateBoolean(
-  value: any,
-  schema: Schema,
+  value: unknown,
+  _schema: Schema,
   path: string,
   errors: ValidationError[]
-): boolean | any {
+): boolean | unknown {
   // Coerce string booleans
-  if (value === 'true') value = true;
-  if (value === 'false') value = false;
+  let coercedValue = value;
+  if (value === 'true') coercedValue = true;
+  if (value === 'false') coercedValue = false;
 
-  if (typeof value !== 'boolean') {
+  if (typeof coercedValue !== 'boolean') {
     errors.push({
       path,
       message: 'Expected boolean',
       expected: 'boolean',
-      actual: typeof value,
+      actual: typeof coercedValue,
     });
-    return value;
+    return coercedValue;
   }
 
-  return value;
+  return coercedValue;
 }
 
 /**
  * Validate date value
  */
 function validateDate(
-  value: any,
-  schema: Schema,
+  value: unknown,
+  _schema: Schema,
   path: string,
   errors: ValidationError[]
-): Date | any {
+): Date | unknown {
   let date: Date;
 
   if (value instanceof Date) {
@@ -237,7 +244,7 @@ function validateDate(
     return value;
   }
 
-  if (isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     errors.push({
       path,
       message: 'Invalid date',
@@ -254,11 +261,11 @@ function validateDate(
  * Validate array value
  */
 function validateArray(
-  value: any,
+  value: unknown,
   schema: Schema,
   path: string,
   errors: ValidationError[]
-): any[] | any {
+): unknown[] | unknown {
   if (!Array.isArray(value)) {
     errors.push({
       path,
@@ -272,7 +279,7 @@ function validateArray(
   // Validate items if schema provided
   if (schema.items) {
     return value.map((item, index) =>
-      validateValue(item, schema.items!, `${path}[${index}]`, errors)
+      validateValue(item, schema.items, `${path}[${index}]`, errors)
     );
   }
 
@@ -283,11 +290,11 @@ function validateArray(
  * Validate object value
  */
 function validateObject(
-  value: any,
+  value: unknown,
   schema: Schema,
   path: string,
   errors: ValidationError[]
-): Record<string, any> | any {
+): Record<string, unknown> | unknown {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     errors.push({
       path,
@@ -298,7 +305,7 @@ function validateObject(
     return value;
   }
 
-  const result: Record<string, any> = {};
+  const result: Record<string, unknown> = {};
 
   // Check required properties
   if (schema.required) {
@@ -306,7 +313,7 @@ function validateObject(
       if (!(prop in value)) {
         errors.push({
           path: path ? `${path}.${prop}` : prop,
-          message: `Required property missing`,
+          message: 'Required property missing',
           expected: 'property to exist',
           actual: 'undefined',
         });

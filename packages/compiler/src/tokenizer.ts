@@ -81,7 +81,7 @@ function advance(state: TokenizerState, count = 1): TokenizerState {
 }
 
 function peek(state: TokenizerState, offset = 0): string {
-  return state.source[state.position + offset] || '';
+  return state.source[state.position + offset] ?? '';
 }
 
 function peekSequence(state: TokenizerState, sequence: string): boolean {
@@ -580,7 +580,7 @@ function getCharacterHandler(char: string): CharacterHandler | null {
   if (charCode < 128) {
     return ASCII_HANDLERS[charCode];
   }
-  return UNICODE_HANDLERS.get(char) || null;
+  return UNICODE_HANDLERS.get(char) ?? null;
 }
 
 // Optimized tokenizer with jump tables and object pooling

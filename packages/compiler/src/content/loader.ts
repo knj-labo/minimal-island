@@ -3,7 +3,13 @@
  * Handles Markdown, MDX, JSON, and YAML content
  */
 
-import type { ContentEntry, ContentLoader, Heading, ReadingTime, RenderResult } from './types.js';
+import type {
+  ContentEntry,
+  ContentLoader,
+  ContentRenderResult,
+  Heading,
+  ReadingTime,
+} from './types.js';
 
 export interface LoaderOptions {
   /**
@@ -40,7 +46,7 @@ export interface MarkdownRenderer {
  * Parse frontmatter from content
  */
 export function parseFrontmatter(content: string): {
-  frontmatter: Record<string, any>;
+  frontmatter: Record<string, unknown>;
   content: string;
 } {
   const frontmatterRegex = /^---\s*\n?([\s\S]*?)\n?---\s*\n?([\s\S]*)$/;
@@ -74,8 +80,8 @@ export function parseFrontmatter(content: string): {
 /**
  * Simple YAML parser for frontmatter
  */
-function parseYaml(yamlStr: string): Record<string, any> {
-  const result: Record<string, any> = {};
+function parseYaml(yamlStr: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
   const lines = yamlStr.split('\n');
 
   for (const line of lines) {
@@ -219,8 +225,8 @@ const defaultMarkdownRenderer: MarkdownRenderer = {
  */
 export function createMarkdownLoader(options: LoaderOptions): ContentLoader {
   const {
-    root,
-    baseUrl = '',
+    root: _root,
+    baseUrl: _baseUrl = '',
     markdownRenderer = defaultMarkdownRenderer,
     extractHeadings: shouldExtractHeadings = true,
     calculateReadingTime: shouldCalculateReadingTime = true,
@@ -233,14 +239,14 @@ export function createMarkdownLoader(options: LoaderOptions): ContentLoader {
       const content = ''; // fs.readFileSync(file, 'utf-8');
 
       const { frontmatter, content: body } = parseFrontmatter(content);
-      const slug = generateSlug(file.split('/').pop() || '');
+      const slug = generateSlug(file.split('/').pop() ?? '');
       const id = `${collection}/${slug}`;
 
       // Create render function
-      const render = async (): Promise<RenderResult> => {
+      const render = async (): Promise<ContentRenderResult> => {
         const html = await markdownRenderer.render(body);
 
-        const result: RenderResult = { html };
+        const result: ContentRenderResult = { html };
 
         if (shouldExtractHeadings) {
           result.headings = extractHeadings(body);
@@ -271,14 +277,14 @@ export function createMarkdownLoader(options: LoaderOptions): ContentLoader {
 /**
  * Create JSON content loader
  */
-export function createJsonLoader(options: LoaderOptions): ContentLoader {
+export function createJsonLoader(_options: LoaderOptions): ContentLoader {
   return async (file: string, collection: string): Promise<Partial<ContentEntry>> => {
     try {
       // Simulate JSON file reading
       const content = '{}'; // fs.readFileSync(file, 'utf-8');
       const data = JSON.parse(content);
 
-      const slug = generateSlug(file.split('/').pop() || '');
+      const slug = generateSlug(file.split('/').pop() ?? '');
       const id = `${collection}/${slug}`;
 
       return {
@@ -297,14 +303,14 @@ export function createJsonLoader(options: LoaderOptions): ContentLoader {
 /**
  * Create YAML content loader
  */
-export function createYamlLoader(options: LoaderOptions): ContentLoader {
+export function createYamlLoader(_options: LoaderOptions): ContentLoader {
   return async (file: string, collection: string): Promise<Partial<ContentEntry>> => {
     try {
       // Simulate YAML file reading
       const content = ''; // fs.readFileSync(file, 'utf-8');
       const data = parseYaml(content);
 
-      const slug = generateSlug(file.split('/').pop() || '');
+      const slug = generateSlug(file.split('/').pop() ?? '');
       const id = `${collection}/${slug}`;
 
       return {

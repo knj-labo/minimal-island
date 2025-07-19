@@ -49,7 +49,7 @@ const items = Array.from({ length: 100 }, (_, i) => ({ id: i, name: \`Item \${i}
 </Layout>`;
 
 const htmlWithSpecialChars = `<p>This contains & < > " ' characters that need escaping</p>`;
-const htmlWithoutSpecialChars = `<p>This is plain text without any special characters</p>`;
+const htmlWithoutSpecialChars = '<p>This is plain text without any special characters</p>';
 
 describe('Performance Benchmarks', () => {
   test('should demonstrate tokenizer performance improvements', async () => {
@@ -166,14 +166,14 @@ describe('Performance Benchmarks', () => {
     const results = await suite.run();
     const report = formatResults(results);
 
-    console.log('\n' + report);
+    console.log(`\n${report}`);
 
     // All benchmarks should complete
     expect(results).toHaveLength(5);
-    results.forEach((result) => {
+    for (const result of results) {
       expect(result.iterations).toBeGreaterThan(0);
       expect(result.averageTime).toBeGreaterThan(0);
-    });
+    }
   });
 
   test('should demonstrate memory efficiency', async () => {
@@ -212,7 +212,7 @@ describe('Performance Benchmarks', () => {
     }
 
     const mean = results.reduce((a, b) => a + b, 0) / results.length;
-    const variance = results.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / results.length;
+    const variance = results.reduce((a, b) => a + (b - mean) ** 2, 0) / results.length;
     const stdDev = Math.sqrt(variance);
     const coefficientOfVariation = stdDev / mean;
 

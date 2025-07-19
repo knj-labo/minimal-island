@@ -3,6 +3,9 @@
  * Handles client-side hydration based on directives
  */
 
+// Type-only imports for component types
+type ComponentType<P = Record<string, unknown>> = (props: P) => unknown;
+
 export interface HydrationOptions {
   /**
    * Root element selector or element
@@ -12,7 +15,7 @@ export interface HydrationOptions {
   /**
    * Component registry
    */
-  components: Map<string, any>;
+  components: Map<string, ComponentType>;
 
   /**
    * React or Preact
@@ -22,7 +25,7 @@ export interface HydrationOptions {
   /**
    * Custom render function
    */
-  render?: (component: any, container: HTMLElement) => void;
+  render?: (component: ComponentType, container: HTMLElement) => void;
 }
 
 export interface HydrationContext {
@@ -47,8 +50,8 @@ export interface HydrationContext {
 
 export interface PendingHydration {
   element: HTMLElement;
-  component: any;
-  props: Record<string, any>;
+  component: ComponentType;
+  props: Record<string, unknown>;
   directive: string;
   value?: string;
 }
@@ -69,18 +72,21 @@ export function createHydrationRuntime(options: HydrationOptions) {
   /**
    * Default render function
    */
-  const defaultRender = (component: any, container: HTMLElement) => {
+  const defaultRender = (component: ComponentType, container: HTMLElement) => {
     if (runtime === 'react') {
       // Assume React is available globally
-      const React = (window as any).React;
-      const ReactDOM = (window as any).ReactDOM;
+      // biome-ignore lint/suspicious/noExplicitAny: Global React access requires any
+      const React = (window as { React?: any }).React;
+      // biome-ignore lint/suspicious/noExplicitAny: Global ReactDOM access requires any
+      const ReactDOM = (window as { ReactDOM?: any }).ReactDOM;
 
       if (React && ReactDOM) {
         ReactDOM.hydrate(React.createElement(component), container);
       }
     } else if (runtime === 'preact') {
       // Assume Preact is available globally
-      const { h, hydrate } = (window as any).preact;
+      // biome-ignore lint/suspicious/noExplicitAny: Global Preact access requires any
+      const { h, hydrate } = (window as { preact?: any }).preact ?? {};
 
       if (h && hydrate) {
         hydrate(h(component), container);
@@ -88,7 +94,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
     }
   };
 
-  const renderFn = render || defaultRender;
+  const renderFn = render ?? defaultRender;
 
   /**
    * Hydrate a component
@@ -100,6 +106,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
     }
 
     // Get hydration data
+    // biome-ignore lint/suspicious/noExplicitAny: Global hydration data access
     const hydrationData = (window as any).__ASTRO_HYDRATION_DATA__;
     if (!hydrationData) {
       console.error('No hydration data found');
@@ -107,6 +114,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
     }
 
     // Find directive for this component
+    // biome-ignore lint/suspicious/noExplicitAny: Hydration directive data
     const directive = hydrationData.directives.find((d: any) => d.componentId === componentId);
 
     if (!directive) {
@@ -116,7 +124,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
 
     // Get component
     const componentName = element.getAttribute('data-astro-component');
-    const Component = components.get(componentName || '');
+    const Component = components.get(componentName ?? '');
 
     if (!Component) {
       console.error(`Component ${componentName} not found in registry`);
@@ -216,7 +224,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
     if (!context.observers.intersection) {
       context.observers.intersection = new IntersectionObserver(
         (entries) => {
-          entries.forEach((entry) => {
+          for (const entry of entries) {
             if (entry.isIntersecting) {
               const componentId = entry.target.id;
               const pendingHydration = context.pending.get(componentId);
@@ -226,7 +234,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
                 context.observers.intersection?.unobserve(entry.target);
               }
             }
-          });
+          }
         },
         {
           rootMargin: '50px',
@@ -260,7 +268,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
    * Find and hydrate all components
    */
   function hydrateAll(): void {
-    const root = options.root || document.body;
+    const root = options.root ?? document.body;
     const rootElement = typeof root === 'string' ? document.querySelector(root) : root;
 
     if (!rootElement) {
@@ -271,11 +279,11 @@ export function createHydrationRuntime(options: HydrationOptions) {
     // Find all hydration roots
     const hydrationRoots = rootElement.querySelectorAll('[data-astro-root]');
 
-    hydrationRoots.forEach((element) => {
+    for (const element of hydrationRoots) {
       if (element instanceof HTMLElement) {
         hydrateComponent(element);
       }
-    });
+    }
   }
 
   /**
@@ -307,7 +315,9 @@ export function createHydrationRuntime(options: HydrationOptions) {
  * RequestIdleCallback polyfill
  */
 const requestIdleCallback =
+  // biome-ignore lint/suspicious/noExplicitAny: Browser API access
   (typeof window !== 'undefined' ? (window as any).requestIdleCallback : null) ||
+  // biome-ignore lint/suspicious/noExplicitAny: IdleDeadline type not available
   ((callback: (deadline: any) => void, options?: { timeout?: number }) => {
     const start = Date.now();
     return setTimeout(() => {
@@ -315,7 +325,7 @@ const requestIdleCallback =
         didTimeout: false,
         timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
       });
-    }, options?.timeout || 1);
+    }, options?.timeout ?? 1);
   });
 
 /**
@@ -329,6 +339,7 @@ export function autoHydrate(options: HydrationOptions): void {
       runtime.hydrateAll();
 
       // Store runtime for debugging
+      // biome-ignore lint/suspicious/noExplicitAny: Global runtime storage
       (window as any).__ASTRO_RUNTIME__ = runtime;
     });
   } else {
@@ -336,6 +347,7 @@ export function autoHydrate(options: HydrationOptions): void {
     runtime.hydrateAll();
 
     // Store runtime for debugging
+    // biome-ignore lint/suspicious/noExplicitAny: Global runtime storage
     (window as any).__ASTRO_RUNTIME__ = runtime;
   }
 }
@@ -345,8 +357,8 @@ export function autoHydrate(options: HydrationOptions): void {
  */
 export function hydrate(
   componentId: string,
-  component: any,
-  props: Record<string, any>,
+  component: ComponentType,
+  _props: Record<string, unknown>,
   options: Partial<HydrationOptions> = {}
 ): void {
   const element = document.getElementById(componentId);
@@ -356,10 +368,11 @@ export function hydrate(
   }
 
   const runtime =
-    (window as any).__ASTRO_RUNTIME__ ||
+    // biome-ignore lint/suspicious/noExplicitAny: Global runtime access
+    (window as any).__ASTRO_RUNTIME__ ??
     createHydrationRuntime({
       components: new Map([[component.name, component]]),
-      runtime: options.runtime || 'react',
+      runtime: options.runtime ?? 'react',
       ...options,
     });
 

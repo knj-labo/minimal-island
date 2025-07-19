@@ -38,7 +38,7 @@ export interface ContentManagerOptions {
 /**
  * Content query implementation
  */
-class ContentQueryImpl<T = any> implements ContentQuery<T> {
+class ContentQueryImpl<T = Record<string, unknown>> implements ContentQuery<T> {
   private entries: ContentEntry<T>[];
   private filters: Array<(entry: ContentEntry<T>) => boolean> = [];
   private sorters: Array<(a: ContentEntry<T>, b: ContentEntry<T>) => number> = [];
@@ -97,7 +97,7 @@ class ContentQueryImpl<T = any> implements ContentQuery<T> {
 
   async first(): Promise<ContentEntry<T> | null> {
     const results = await this.all();
-    return results[0] || null;
+    return results[0] ?? null;
   }
 
   async count(): Promise<number> {
@@ -127,7 +127,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
    */
   async function loadCollection(name: string): Promise<ContentEntry[]> {
     if (contentStore.has(name)) {
-      return contentStore.get(name)!;
+      return contentStore.get(name) as ContentEntry[];
     }
 
     const collectionConfig = config.collections[name];
@@ -157,18 +157,18 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
     // For now, return empty array as placeholder
     const files: string[] = []; // glob.sync(pattern, { cwd: root });
 
-    const loader = config.loader || createAutoLoader({ root, baseUrl });
+    const loader = config.loader ?? createAutoLoader({ root, baseUrl });
     const entries: ContentEntry[] = [];
 
     for (const file of files) {
       try {
         const partialEntry = await loader(file, name);
         const entry: ContentEntry = {
-          id: partialEntry.id || `${name}/${file}`,
+          id: partialEntry.id ?? `${name}/${file}`,
           collection: name,
-          slug: partialEntry.slug || file,
-          file: partialEntry.file || file,
-          data: partialEntry.data || {},
+          slug: partialEntry.slug ?? file,
+          file: partialEntry.file ?? file,
+          data: partialEntry.data ?? {},
           body: partialEntry.body,
           render: partialEntry.render,
         };
@@ -196,7 +196,7 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
       } catch (error) {
         console.error(`Failed to load entry ${file}:`, error);
         if (!dev) {
-          continue; // Skip failed entries in production
+          // Skip failed entries in production
         }
       }
     }
@@ -221,29 +221,32 @@ export function createContentManager(options: ContentManagerOptions): ContentAPI
 
   // Public API
   const api: ContentAPI = {
-    async getCollection<T = any>(name: string): Promise<ContentEntry<T>[]> {
+    async getCollection<T = Record<string, unknown>>(name: string): Promise<ContentEntry<T>[]> {
       const entries = await loadCollection(name);
       return entries as ContentEntry<T>[];
     },
 
-    async getEntry<T = any>(collection: string, id: string): Promise<ContentEntry<T> | null> {
+    async getEntry<T = Record<string, unknown>>(
+      collection: string,
+      id: string
+    ): Promise<ContentEntry<T> | null> {
       const entries = await loadCollection(collection);
       const fullId = id.includes('/') ? id : `${collection}/${id}`;
-      return (entries.find((entry) => entry.id === fullId) as ContentEntry<T>) || null;
+      return (entries.find((entry) => entry.id === fullId) as ContentEntry<T>) ?? null;
     },
 
-    async getEntryBySlug<T = any>(
+    async getEntryBySlug<T = Record<string, unknown>>(
       collection: string,
       slug: string
     ): Promise<ContentEntry<T> | null> {
       const entries = await loadCollection(collection);
-      return (entries.find((entry) => entry.slug === slug) as ContentEntry<T>) || null;
+      return (entries.find((entry) => entry.slug === slug) as ContentEntry<T>) ?? null;
     },
 
-    query<T = any>(collection: string): ContentQuery<T> {
+    query<T = Record<string, unknown>>(collection: string): ContentQuery<T> {
       // Note: This is async but returns sync for API compatibility
       // In practice, you'd want to make this async or pre-load collections
-      const entries = contentStore.get(collection) || [];
+      const entries = contentStore.get(collection) ?? [];
       return new ContentQueryImpl(entries as ContentEntry<T>[]);
     },
 
@@ -290,7 +293,7 @@ export const collections = {
   /**
    * Get all entries from a collection
    */
-  async get<T = any>(name: string): Promise<ContentEntry<T>[]> {
+  async get<T = Record<string, unknown>>(name: string): Promise<ContentEntry<T>[]> {
     const api = getContentAPI();
     return api.getCollection<T>(name);
   },
@@ -298,7 +301,10 @@ export const collections = {
   /**
    * Get entry by ID
    */
-  async getById<T = any>(collection: string, id: string): Promise<ContentEntry<T> | null> {
+  async getById<T = Record<string, unknown>>(
+    collection: string,
+    id: string
+  ): Promise<ContentEntry<T> | null> {
     const api = getContentAPI();
     return api.getEntry<T>(collection, id);
   },
@@ -306,7 +312,10 @@ export const collections = {
   /**
    * Get entry by slug
    */
-  async getBySlug<T = any>(collection: string, slug: string): Promise<ContentEntry<T> | null> {
+  async getBySlug<T = Record<string, unknown>>(
+    collection: string,
+    slug: string
+  ): Promise<ContentEntry<T> | null> {
     const api = getContentAPI();
     return api.getEntryBySlug<T>(collection, slug);
   },
@@ -314,7 +323,7 @@ export const collections = {
   /**
    * Query collection
    */
-  query<T = any>(collection: string): ContentQuery<T> {
+  query<T = Record<string, unknown>>(collection: string): ContentQuery<T> {
     const api = getContentAPI();
     return api.query<T>(collection);
   },
@@ -329,64 +338,68 @@ export const collections = {
 };
 
 /**
+ * Type-safe property access helpers
+ */
+function getDataProperty<T>(data: T, key: string): unknown {
+  return data && typeof data === 'object' && key in data
+    ? (data as Record<string, unknown>)[key]
+    : undefined;
+}
+
+/**
  * Common query helpers
  */
 export const queries = {
   /**
    * Sort by date (newest first)
    */
-  byDateDesc<T extends { data: { date?: Date | string } }>(
-    a: ContentEntry<T>,
-    b: ContentEntry<T>
-  ): number {
-    const dateA = new Date(a.data.date || 0);
-    const dateB = new Date(b.data.date || 0);
+  byDateDesc<T = Record<string, unknown>>(a: ContentEntry<T>, b: ContentEntry<T>): number {
+    const dateA = new Date((getDataProperty(a.data, 'date') as string | Date) ?? 0);
+    const dateB = new Date((getDataProperty(b.data, 'date') as string | Date) ?? 0);
     return dateB.getTime() - dateA.getTime();
   },
 
   /**
    * Sort by date (oldest first)
    */
-  byDateAsc<T extends { data: { date?: Date | string } }>(
-    a: ContentEntry<T>,
-    b: ContentEntry<T>
-  ): number {
-    const dateA = new Date(a.data.date || 0);
-    const dateB = new Date(b.data.date || 0);
+  byDateAsc<T = Record<string, unknown>>(a: ContentEntry<T>, b: ContentEntry<T>): number {
+    const dateA = new Date((getDataProperty(a.data, 'date') as string | Date) ?? 0);
+    const dateB = new Date((getDataProperty(b.data, 'date') as string | Date) ?? 0);
     return dateA.getTime() - dateB.getTime();
   },
 
   /**
    * Sort by title
    */
-  byTitle<T extends { data: { title?: string } }>(a: ContentEntry<T>, b: ContentEntry<T>): number {
-    const titleA = a.data.title || '';
-    const titleB = b.data.title || '';
+  byTitle<T = Record<string, unknown>>(a: ContentEntry<T>, b: ContentEntry<T>): number {
+    const titleA = String(getDataProperty(a.data, 'title') ?? '');
+    const titleB = String(getDataProperty(b.data, 'title') ?? '');
     return titleA.localeCompare(titleB);
   },
 
   /**
    * Filter by draft status
    */
-  published<T extends { data: { draft?: boolean } }>(entry: ContentEntry<T>): boolean {
-    return !entry.data.draft;
+  published<T = Record<string, unknown>>(entry: ContentEntry<T>): boolean {
+    return !getDataProperty(entry.data, 'draft');
   },
 
   /**
    * Filter by tag
    */
-  withTag<T extends { data: { tags?: string[] } }>(tag: string) {
+  withTag<T = Record<string, unknown>>(tag: string) {
     return (entry: ContentEntry<T>): boolean => {
-      return entry.data.tags?.includes(tag) || false;
+      const tags = getDataProperty(entry.data, 'tags');
+      return Array.isArray(tags) && tags.includes(tag);
     };
   },
 
   /**
    * Filter by category
    */
-  inCategory<T extends { data: { category?: string } }>(category: string) {
+  inCategory<T = Record<string, unknown>>(category: string) {
     return (entry: ContentEntry<T>): boolean => {
-      return entry.data.category === category;
+      return getDataProperty(entry.data, 'category') === category;
     };
   },
 };
