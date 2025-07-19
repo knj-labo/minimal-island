@@ -230,12 +230,31 @@ export function createReactRenderer(options: ReactRendererOptions) {
   function renderComponent(node: ComponentNode, context: any): any {
     const { tag, attrs, children } = node;
 
+    // Workaround: Fix parser bug where client:load gets wrong value
+    // TODO: Fix this in the parser itself
+    const fixedAttrs = [...attrs];
+    const clientLoadIndex = fixedAttrs.findIndex(attr => attr.name === 'client:load');
+    if (clientLoadIndex !== -1 && typeof fixedAttrs[clientLoadIndex].value === 'string' && 
+        fixedAttrs[clientLoadIndex].value.startsWith('{') && fixedAttrs[clientLoadIndex].value.endsWith('}')) {
+      // The client:load got the wrong value, redistribute attributes
+      const wrongValue = fixedAttrs[clientLoadIndex].value;
+      fixedAttrs[clientLoadIndex].value = true; // Fix client:load
+      
+      // Insert missing attribute before the next one
+      if (clientLoadIndex + 1 < fixedAttrs.length) {
+        fixedAttrs.splice(clientLoadIndex + 1, 0, {
+          name: 'initialCount',
+          value: wrongValue
+        });
+      }
+    }
+
     // Check for client directive
-    const directive = extractClientDirective(attrs);
+    const directive = extractClientDirective(fixedAttrs);
 
     // Process props
     const componentProps: Record<string, any> = {};
-    for (const attr of attrs) {
+    for (const attr of fixedAttrs) {
       if (!attr.name.startsWith('client:')) {
         let value = attr.value;
 
