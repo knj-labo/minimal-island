@@ -6,9 +6,9 @@ import type {
   Node,
 } from '../../types/ast.js';
 import { buildHtml } from '../html-builder.js';
-import { injectHmrCode } from './hmr.js';
-import { createSSRRenderer, type HydrationData } from '../renderer/react.js';
 import { astToJSX } from '../renderer/jsx-transform.js';
+import { type HydrationData, createSSRRenderer } from '../renderer/react.js';
+import { injectHmrCode } from './hmr.js';
 
 export interface TransformOptions {
   filename: string;
@@ -23,13 +23,13 @@ export interface TransformOptions {
  * Transform an Astro AST to a JavaScript module
  */
 export function transformAstroToJs(ast: FragmentNode, options: TransformOptions): string {
-  const { 
-    filename, 
-    dev = false, 
+  const {
+    filename,
+    dev = false,
     prettyPrint = true,
     ssr = true,
     framework = 'vanilla',
-    components = new Map()
+    components = new Map(),
   } = options;
 
   // Extract frontmatter
@@ -43,7 +43,7 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
 
   // Add imports that are commonly needed
   parts.push(`// Auto-generated from ${filename}`);
-  
+
   // Import React/Preact if needed
   if (framework === 'react' && hasClientDirectives(ast)) {
     parts.push(`import React from 'react';`);
@@ -81,7 +81,9 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
     parts.push('  const { output, hydrationData, scripts } = renderResult;');
     parts.push('');
     parts.push('  // Combine HTML with hydration scripts');
-    parts.push('  const html = output + (scripts ? scripts.map(s => `<script>${s}</script>`).join("") : "");');
+    parts.push(
+      '  const html = output + (scripts ? scripts.map(s => `<script>${s}</script>`).join("") : "");'
+    );
     parts.push('  return { html, hydrationData };');
   } else {
     // Use simple HTML builder for vanilla components
@@ -97,12 +99,12 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
     parts.push('');
     parts.push('// JSX Component export');
     parts.push('export function Component(props = {}) {');
-    
+
     const jsxCode = astToJSX(templateAst, {
       runtime: framework,
       jsxImportSource: framework,
     });
-    
+
     parts.push('  ' + jsxCode.split('\n').join('\n  '));
     parts.push('}');
   }
@@ -119,8 +121,9 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
 
   // Default export for easier imports
   parts.push('');
-  parts.push('export default { render, metadata' + 
-    (framework !== 'vanilla' ? ', Component' : '') + ' };');
+  parts.push(
+    'export default { render, metadata' + (framework !== 'vanilla' ? ', Component' : '') + ' };'
+  );
 
   const jsCode = parts.join('\n');
 
@@ -132,22 +135,22 @@ export function transformAstroToJs(ast: FragmentNode, options: TransformOptions)
  * Extract client-side JavaScript from components
  */
 export function extractClientScript(
-  ast: FragmentNode, 
+  ast: FragmentNode,
   options: { framework?: 'react' | 'preact' | 'vanilla' } = {}
 ): string | null {
   const { framework = 'vanilla' } = options;
-  
+
   if (!hasClientDirectives(ast)) {
     return null;
   }
-  
+
   // Generate client-side hydration script
   const parts: string[] = [];
-  
+
   parts.push('// Client-side hydration script');
   parts.push('(function() {');
   parts.push('  if (typeof window !== "undefined") {');
-  
+
   if (framework === 'react') {
     parts.push('    import("@astro-lite/compiler/runtime/hydrate").then(({ autoHydrate }) => {');
     parts.push('      autoHydrate({');
@@ -163,10 +166,10 @@ export function extractClientScript(
     parts.push('      });');
     parts.push('    });');
   }
-  
+
   parts.push('  }');
   parts.push('})();');
-  
+
   return parts.join('\n');
 }
 

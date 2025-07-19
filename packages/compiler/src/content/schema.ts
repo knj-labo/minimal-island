@@ -3,19 +3,19 @@
  * Provides runtime validation and type generation
  */
 
-import type { Schema, ContentEntry } from './types.js';
+import type { ContentEntry, Schema } from './types.js';
 
 export interface ValidationResult {
   /**
    * Whether validation passed
    */
   valid: boolean;
-  
+
   /**
    * Validation errors
    */
   errors: ValidationError[];
-  
+
   /**
    * Validated and coerced data
    */
@@ -27,17 +27,17 @@ export interface ValidationError {
    * Error path
    */
   path: string;
-  
+
   /**
    * Error message
    */
   message: string;
-  
+
   /**
    * Expected type/value
    */
   expected?: string;
-  
+
   /**
    * Actual value
    */
@@ -52,7 +52,7 @@ export function createSchemaValidator(schema: Schema) {
     validate(data: any): ValidationResult {
       const errors: ValidationError[] = [];
       const validatedData = validateValue(data, schema, '', errors);
-      
+
       return {
         valid: errors.length === 0,
         errors,
@@ -65,12 +65,7 @@ export function createSchemaValidator(schema: Schema) {
 /**
  * Validate a value against a schema
  */
-function validateValue(
-  value: any,
-  schema: Schema,
-  path: string,
-  errors: ValidationError[]
-): any {
+function validateValue(value: any, schema: Schema, path: string, errors: ValidationError[]): any {
   // Handle null/undefined
   if (value == null) {
     if (schema.required?.length) {
@@ -83,26 +78,26 @@ function validateValue(
     }
     return value;
   }
-  
+
   switch (schema.type) {
     case 'string':
       return validateString(value, schema, path, errors);
-      
+
     case 'number':
       return validateNumber(value, schema, path, errors);
-      
+
     case 'boolean':
       return validateBoolean(value, schema, path, errors);
-      
+
     case 'date':
       return validateDate(value, schema, path, errors);
-      
+
     case 'array':
       return validateArray(value, schema, path, errors);
-      
+
     case 'object':
       return validateObject(value, schema, path, errors);
-      
+
     default:
       errors.push({
         path,
@@ -132,7 +127,7 @@ function validateString(
     });
     return value;
   }
-  
+
   // Custom validation
   if (schema.validate) {
     const result = schema.validate(value);
@@ -145,7 +140,7 @@ function validateString(
       });
     }
   }
-  
+
   return value;
 }
 
@@ -162,7 +157,7 @@ function validateNumber(
   if (typeof value === 'string' && !isNaN(Number(value))) {
     value = Number(value);
   }
-  
+
   if (typeof value !== 'number' || isNaN(value)) {
     errors.push({
       path,
@@ -172,7 +167,7 @@ function validateNumber(
     });
     return value;
   }
-  
+
   // Custom validation
   if (schema.validate) {
     const result = schema.validate(value);
@@ -185,7 +180,7 @@ function validateNumber(
       });
     }
   }
-  
+
   return value;
 }
 
@@ -201,7 +196,7 @@ function validateBoolean(
   // Coerce string booleans
   if (value === 'true') value = true;
   if (value === 'false') value = false;
-  
+
   if (typeof value !== 'boolean') {
     errors.push({
       path,
@@ -211,7 +206,7 @@ function validateBoolean(
     });
     return value;
   }
-  
+
   return value;
 }
 
@@ -225,7 +220,7 @@ function validateDate(
   errors: ValidationError[]
 ): Date | any {
   let date: Date;
-  
+
   if (value instanceof Date) {
     date = value;
   } else if (typeof value === 'string') {
@@ -241,7 +236,7 @@ function validateDate(
     });
     return value;
   }
-  
+
   if (isNaN(date.getTime())) {
     errors.push({
       path,
@@ -251,7 +246,7 @@ function validateDate(
     });
     return value;
   }
-  
+
   return date;
 }
 
@@ -273,14 +268,14 @@ function validateArray(
     });
     return value;
   }
-  
+
   // Validate items if schema provided
   if (schema.items) {
     return value.map((item, index) =>
       validateValue(item, schema.items!, `${path}[${index}]`, errors)
     );
   }
-  
+
   return value;
 }
 
@@ -302,9 +297,9 @@ function validateObject(
     });
     return value;
   }
-  
+
   const result: Record<string, any> = {};
-  
+
   // Check required properties
   if (schema.required) {
     for (const prop of schema.required) {
@@ -318,7 +313,7 @@ function validateObject(
       }
     }
   }
-  
+
   // Validate properties
   if (schema.properties) {
     for (const [prop, propSchema] of Object.entries(schema.properties)) {
@@ -328,14 +323,14 @@ function validateObject(
       }
     }
   }
-  
+
   // Copy non-schema properties
   for (const [prop, val] of Object.entries(value)) {
     if (!schema.properties || !(prop in schema.properties)) {
       result[prop] = val;
     }
   }
-  
+
   return result;
 }
 
@@ -346,31 +341,31 @@ export const z = {
   string(): Schema {
     return { type: 'string' };
   },
-  
+
   number(): Schema {
     return { type: 'number' };
   },
-  
+
   boolean(): Schema {
     return { type: 'boolean' };
   },
-  
+
   date(): Schema {
     return { type: 'date' };
   },
-  
+
   array(items: Schema): Schema {
     return { type: 'array', items };
   },
-  
+
   object(properties: Record<string, Schema>, required?: string[]): Schema {
     return { type: 'object', properties, required };
   },
-  
+
   optional(schema: Schema): Schema {
     return { ...schema };
   },
-  
+
   enum(values: string[]): Schema {
     return {
       type: 'string',
@@ -382,7 +377,7 @@ export const z = {
       },
     };
   },
-  
+
   min(minValue: number): (schema: Schema) => Schema {
     return (schema: Schema) => ({
       ...schema,
@@ -394,7 +389,7 @@ export const z = {
       },
     });
   },
-  
+
   max(maxValue: number): (schema: Schema) => Schema {
     return (schema: Schema) => ({
       ...schema,
@@ -406,7 +401,7 @@ export const z = {
       },
     });
   },
-  
+
   email(): Schema {
     return {
       type: 'string',
@@ -419,7 +414,7 @@ export const z = {
       },
     };
   },
-  
+
   url(): Schema {
     return {
       type: 'string',
@@ -438,10 +433,7 @@ export const z = {
 /**
  * Validate content entry against schema
  */
-export function validateContentEntry(
-  entry: ContentEntry,
-  schema?: Schema
-): ValidationResult {
+export function validateContentEntry(entry: ContentEntry, schema?: Schema): ValidationResult {
   if (!schema) {
     return {
       valid: true,
@@ -449,7 +441,7 @@ export function validateContentEntry(
       data: entry.data,
     };
   }
-  
+
   const validator = createSchemaValidator(schema);
   return validator.validate(entry.data);
 }

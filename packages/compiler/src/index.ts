@@ -10,29 +10,29 @@ export { transformAstroToJs, extractClientScript, hasClientDirectives } from './
 export { analyzeAstForHmr, handleAstroHmr, canHotReload, injectHmrCode } from './vite/hmr.js';
 
 // Renderer exports
-export { 
-  createReactRenderer, 
-  createSSRRenderer, 
+export {
+  createReactRenderer,
+  createSSRRenderer,
   createClientRenderer,
   type ReactRendererOptions,
   type RenderResult,
   type HydrationData,
-  type ClientDirective 
+  type ClientDirective,
 } from './renderer/react.js';
-export { 
-  createJSXTransformer, 
-  astToJSX, 
+export {
+  createJSXTransformer,
+  astToJSX,
   astToReactComponent,
-  type JSXTransformOptions 
+  type JSXTransformOptions,
 } from './renderer/jsx-transform.js';
 
 // Runtime exports
-export { 
-  createHydrationRuntime, 
-  autoHydrate, 
+export {
+  createHydrationRuntime,
+  autoHydrate,
   hydrate,
   type HydrationOptions,
-  type HydrationContext 
+  type HydrationContext,
 } from './runtime/hydrate.js';
 
 // Content Collections exports

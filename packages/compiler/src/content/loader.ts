@@ -3,35 +3,29 @@
  * Handles Markdown, MDX, JSON, and YAML content
  */
 
-import type { 
-  ContentEntry, 
-  ContentLoader, 
-  RenderResult, 
-  Heading, 
-  ReadingTime 
-} from './types.js';
+import type { ContentEntry, ContentLoader, Heading, ReadingTime, RenderResult } from './types.js';
 
 export interface LoaderOptions {
   /**
    * Content root directory
    */
   root: string;
-  
+
   /**
    * Base URL for content
    */
   baseUrl?: string;
-  
+
   /**
    * Custom markdown renderer
    */
   markdownRenderer?: MarkdownRenderer;
-  
+
   /**
    * Extract headings from content
    */
   extractHeadings?: boolean;
-  
+
   /**
    * Calculate reading time
    */
@@ -51,16 +45,16 @@ export function parseFrontmatter(content: string): {
 } {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
-  
+
   if (!match) {
     return {
       frontmatter: {},
       content: content.trim(),
     };
   }
-  
+
   const [, frontmatterStr, bodyContent] = match;
-  
+
   try {
     // Simple YAML parser for frontmatter
     const frontmatter = frontmatterStr.trim() ? parseYaml(frontmatterStr) : {};
@@ -83,23 +77,25 @@ export function parseFrontmatter(content: string): {
 function parseYaml(yamlStr: string): Record<string, any> {
   const result: Record<string, any> = {};
   const lines = yamlStr.split('\n');
-  
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
-    
+
     const colonIndex = trimmed.indexOf(':');
     if (colonIndex === -1) continue;
-    
+
     const key = trimmed.slice(0, colonIndex).trim();
     let value = trimmed.slice(colonIndex + 1).trim();
-    
+
     // Remove quotes
-    if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
-    
+
     // Parse values
     if (value === 'true') {
       result[key] = true;
@@ -108,13 +104,16 @@ function parseYaml(yamlStr: string): Record<string, any> {
     } else if (value === 'null') {
       result[key] = null;
     } else if (/^\d+$/.test(value)) {
-      result[key] = parseInt(value, 10);
+      result[key] = Number.parseInt(value, 10);
     } else if (/^\d+\.\d+$/.test(value)) {
-      result[key] = parseFloat(value);
+      result[key] = Number.parseFloat(value);
     } else if (value.startsWith('[') && value.endsWith(']')) {
       // Simple array parsing
-      const items = value.slice(1, -1).split(',').map(item => item.trim());
-      result[key] = items.map(item => {
+      const items = value
+        .slice(1, -1)
+        .split(',')
+        .map((item) => item.trim());
+      result[key] = items.map((item) => {
         if (item.startsWith('"') && item.endsWith('"')) {
           return item.slice(1, -1);
         }
@@ -124,7 +123,7 @@ function parseYaml(yamlStr: string): Record<string, any> {
       result[key] = value;
     }
   }
-  
+
   return result;
 }
 
@@ -145,7 +144,7 @@ export function generateSlug(filename: string): string {
 export function extractHeadings(content: string): Heading[] {
   const headings: Heading[] = [];
   const lines = content.split('\n');
-  
+
   for (const line of lines) {
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     if (match) {
@@ -157,11 +156,11 @@ export function extractHeadings(content: string): Heading[] {
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-+|-+$/g, '');
-      
+
       headings.push({ level, text, slug });
     }
   }
-  
+
   return headings;
 }
 
@@ -172,10 +171,10 @@ export function calculateReadingTime(content: string): ReadingTime {
   const words = content
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(word => word.length > 0).length;
-  
+    .filter((word) => word.length > 0).length;
+
   const minutes = Math.ceil(words / 200); // Average reading speed
-  
+
   return { minutes, words };
 }
 
@@ -202,15 +201,15 @@ const defaultMarkdownRenderer: MarkdownRenderer = {
       .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2">$1</a>')
       // Line breaks
       .replace(/\n/gim, '<br>');
-    
+
     // Wrap in paragraphs
     html = html
       .split('<br><br>')
-      .map(para => para.trim())
-      .filter(para => para)
-      .map(para => `<p>${para}</p>`)
+      .map((para) => para.trim())
+      .filter((para) => para)
+      .map((para) => `<p>${para}</p>`)
       .join('\n');
-    
+
     return html;
   },
 };
@@ -219,41 +218,41 @@ const defaultMarkdownRenderer: MarkdownRenderer = {
  * Create markdown content loader
  */
 export function createMarkdownLoader(options: LoaderOptions): ContentLoader {
-  const { 
-    root, 
-    baseUrl = '', 
+  const {
+    root,
+    baseUrl = '',
     markdownRenderer = defaultMarkdownRenderer,
     extractHeadings: shouldExtractHeadings = true,
     calculateReadingTime: shouldCalculateReadingTime = true,
   } = options;
-  
+
   return async (file: string, collection: string): Promise<Partial<ContentEntry>> => {
     try {
       // For now, simulate file reading since we don't have filesystem access
       // In a real implementation, you'd read the file here
       const content = ''; // fs.readFileSync(file, 'utf-8');
-      
+
       const { frontmatter, content: body } = parseFrontmatter(content);
       const slug = generateSlug(file.split('/').pop() || '');
       const id = `${collection}/${slug}`;
-      
+
       // Create render function
       const render = async (): Promise<RenderResult> => {
         const html = await markdownRenderer.render(body);
-        
+
         const result: RenderResult = { html };
-        
+
         if (shouldExtractHeadings) {
           result.headings = extractHeadings(body);
         }
-        
+
         if (shouldCalculateReadingTime) {
           result.readingTime = calculateReadingTime(body);
         }
-        
+
         return result;
       };
-      
+
       return {
         id,
         collection,
@@ -278,10 +277,10 @@ export function createJsonLoader(options: LoaderOptions): ContentLoader {
       // Simulate JSON file reading
       const content = '{}'; // fs.readFileSync(file, 'utf-8');
       const data = JSON.parse(content);
-      
+
       const slug = generateSlug(file.split('/').pop() || '');
       const id = `${collection}/${slug}`;
-      
+
       return {
         id,
         collection,
@@ -304,10 +303,10 @@ export function createYamlLoader(options: LoaderOptions): ContentLoader {
       // Simulate YAML file reading
       const content = ''; // fs.readFileSync(file, 'utf-8');
       const data = parseYaml(content);
-      
+
       const slug = generateSlug(file.split('/').pop() || '');
       const id = `${collection}/${slug}`;
-      
+
       return {
         id,
         collection,
@@ -328,23 +327,23 @@ export function createAutoLoader(options: LoaderOptions): ContentLoader {
   const markdownLoader = createMarkdownLoader(options);
   const jsonLoader = createJsonLoader(options);
   const yamlLoader = createYamlLoader(options);
-  
+
   return async (file: string, collection: string): Promise<Partial<ContentEntry>> => {
     const ext = file.split('.').pop()?.toLowerCase();
-    
+
     switch (ext) {
       case 'md':
       case 'markdown':
       case 'mdx':
         return markdownLoader(file, collection);
-        
+
       case 'json':
         return jsonLoader(file, collection);
-        
+
       case 'yaml':
       case 'yml':
         return yamlLoader(file, collection);
-        
+
       default:
         throw new Error(`Unsupported file type: ${ext}`);
     }
