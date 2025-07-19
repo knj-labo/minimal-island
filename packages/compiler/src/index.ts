@@ -9,6 +9,32 @@ export { astroVitePlugin } from './vite/plugin.js';
 export { transformAstroToJs, extractClientScript, hasClientDirectives } from './vite/transform.js';
 export { analyzeAstForHmr, handleAstroHmr, canHotReload, injectHmrCode } from './vite/hmr.js';
 
+// Renderer exports
+export { 
+  createReactRenderer, 
+  createSSRRenderer, 
+  createClientRenderer,
+  type ReactRendererOptions,
+  type RenderResult,
+  type HydrationData,
+  type ClientDirective 
+} from './renderer/react.js';
+export { 
+  createJSXTransformer, 
+  astToJSX, 
+  astToReactComponent,
+  type JSXTransformOptions 
+} from './renderer/jsx-transform.js';
+
+// Runtime exports
+export { 
+  createHydrationRuntime, 
+  autoHydrate, 
+  hydrate,
+  type HydrationOptions,
+  type HydrationContext 
+} from './runtime/hydrate.js';
+
 // Performance utilities
 export {
   createObjectPool,
