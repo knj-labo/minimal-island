@@ -35,6 +35,48 @@ export {
   type HydrationContext 
 } from './runtime/hydrate.js';
 
+// Content Collections exports
+export {
+  createContentManager,
+  initializeContentAPI,
+  getContentAPI,
+  collections,
+  queries,
+  type ContentManagerOptions,
+} from './content/api.js';
+export {
+  createSchemaValidator,
+  validateContentEntry,
+  z,
+  type ValidationResult,
+  type ValidationError,
+} from './content/schema.js';
+export {
+  createMarkdownLoader,
+  createJsonLoader,
+  createYamlLoader,
+  createAutoLoader,
+  parseFrontmatter,
+  generateSlug,
+  extractHeadings,
+  calculateReadingTime,
+  type LoaderOptions,
+  type MarkdownRenderer,
+} from './content/loader.js';
+export type {
+  ContentConfig,
+  CollectionConfig,
+  Schema,
+  ContentEntry,
+  RenderResult,
+  Heading,
+  ReadingTime,
+  ContentLoader,
+  ContentTransformer,
+  ContentQuery,
+  ContentAPI,
+} from './content/types.js';
+
 // Performance utilities
 export {
   createObjectPool,

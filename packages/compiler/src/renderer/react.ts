@@ -170,7 +170,7 @@ export function createReactRenderer(options: ReactRendererOptions) {
       .filter(child => child !== null && child !== '');
     
     if (mode === 'ssr') {
-      return children.join('');
+      return children.join('').trim();
     }
     
     // For client mode, return React fragment
@@ -235,18 +235,31 @@ export function createReactRenderer(options: ReactRendererOptions) {
     // Check for client directive
     const directive = extractClientDirective(attrs);
     
-    // Get component from registry
-    const Component = components.get(tag);
-    if (!Component && mode === 'ssr') {
-      // For SSR, render placeholder if component not found
-      return `<!-- Component: ${tag} (not found) -->`;
-    }
-    
     // Process props
     const componentProps: Record<string, any> = {};
     for (const attr of attrs) {
       if (!attr.name.startsWith('client:')) {
-        componentProps[attr.name] = attr.value;
+        let value = attr.value;
+        
+        // If value is an expression (wrapped in braces), evaluate it
+        if (typeof value === 'string' && value.startsWith('{') && value.endsWith('}')) {
+          const expression = value.slice(1, -1); // Remove braces
+          try {
+            value = evaluateExpression(expression, context);
+          } catch (error) {
+            // For simple numbers, try parsing directly
+            if (/^\d+$/.test(expression)) {
+              value = parseInt(expression, 10);
+            } else if (/^\d+\.\d+$/.test(expression)) {
+              value = parseFloat(expression);
+            } else {
+              console.error('Failed to evaluate attribute expression:', expression, error);
+              value = expression; // Fall back to the expression string
+            }
+          }
+        }
+        
+        componentProps[attr.name] = value;
       }
     }
     
@@ -257,15 +270,11 @@ export function createReactRenderer(options: ReactRendererOptions) {
         .filter(Boolean);
     }
     
+    // Get component from registry
+    const Component = components.get(tag);
+    
     if (mode === 'ssr') {
-      if (!Component) {
-        return `<!-- Component: ${tag} -->`;
-      }
-      
-      // Server-side render the component
-      const html = renderComponentToString(Component, componentProps);
-      
-      // Add hydration marker if needed
+      // Track hydration data if directive exists
       if (hydrate && directive) {
         const wrapperId = directive.componentId;
         hydrationData.directives.push({
@@ -273,9 +282,23 @@ export function createReactRenderer(options: ReactRendererOptions) {
           props: componentProps,
         });
         
-        return `<div id="${wrapperId}" data-astro-root>${html}</div>`;
+        if (!Component) {
+          // Component not found, render placeholder with hydration marker
+          return `<div id="${wrapperId}" data-astro-root data-astro-component="${tag}"><!-- Component: ${tag} --></div>`;
+        }
+        
+        // Component found, render with hydration marker
+        const html = renderComponentToString(Component, componentProps);
+        return `<div id="${wrapperId}" data-astro-root data-astro-component="${tag}">${html}</div>`;
       }
       
+      if (!Component) {
+        // Component not found, render simple placeholder
+        return `<!-- Component: ${tag} -->`;
+      }
+      
+      // Component found, render normally
+      const html = renderComponentToString(Component, componentProps);
       return html;
     }
     
@@ -290,7 +313,8 @@ export function createReactRenderer(options: ReactRendererOptions) {
     const { value } = node;
     
     if (mode === 'ssr') {
-      return value; // Don't escape here - it's already raw text from parser
+      // Escape HTML entities in SSR mode for safety
+      return escapeHtml(value);
     }
     
     return JSON.stringify(value);
@@ -397,14 +421,16 @@ function processFrontmatter(code: string): Record<string, any> {
   const context: Record<string, any> = {};
   
   try {
-    // Extract simple variable declarations
-    const varMatches = code.matchAll(/const\s+(\w+)\s*=\s*(.+);/g);
+    // Extract simple variable declarations (with or without semicolon)
+    const varMatches = code.matchAll(/const\s+(\w+)\s*=\s*(.+?)(?:;|$)/gm);
     for (const match of varMatches) {
       const [, name, value] = match;
+      const trimmedValue = value.trim();
       try {
-        context[name] = JSON.parse(value);
+        context[name] = JSON.parse(trimmedValue);
       } catch {
-        context[name] = value.replace(/['"]/g, '');
+        // Remove quotes if they exist
+        context[name] = trimmedValue.replace(/^['"]|['"]$/g, '');
       }
     }
   } catch (error) {

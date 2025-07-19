@@ -308,7 +308,7 @@ export function createHydrationRuntime(options: HydrationOptions) {
 /**
  * RequestIdleCallback polyfill
  */
-const requestIdleCallback = (window as any).requestIdleCallback || 
+const requestIdleCallback = (typeof window !== 'undefined' ? (window as any).requestIdleCallback : null) || 
   function (callback: (deadline: any) => void, options?: { timeout?: number }) {
     const start = Date.now();
     return setTimeout(() => {
