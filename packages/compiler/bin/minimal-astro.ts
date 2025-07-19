@@ -6,9 +6,9 @@ import { build } from '../src/cli/build.js';
 const VERSION = '0.0.1';
 
 const HELP_TEXT = `
-astro-lite v${VERSION}
+minimal-astro v${VERSION}
 
-Usage: astro-lite <command> [options]
+Usage: minimal-astro <command> [options]
 
 Commands:
   build [dir]        Build your .astro files to static HTML
@@ -16,9 +16,9 @@ Commands:
   --help, -h         Show help
 
 Examples:
-  astro-lite build
-  astro-lite build ./src
-  astro-lite build --output ./dist
+  minimal-astro build
+  minimal-astro build ./src
+  minimal-astro build --output ./dist
 `;
 
 interface CliArgs {
@@ -57,7 +57,7 @@ async function main() {
   }
 
   if (args.values.version) {
-    console.log(`astro-lite v${VERSION}`);
+    console.log(`minimal-astro v${VERSION}`);
     process.exit(0);
   }
 

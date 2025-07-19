@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@astro-lite/compiler": "workspace:*"
+    "@minimal-astro/compiler": "workspace:*"
   },
   "devDependencies": {
     "vite": "^5.0.0"

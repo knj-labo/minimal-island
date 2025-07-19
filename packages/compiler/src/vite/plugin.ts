@@ -205,7 +205,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
   }
 
   return {
-    name: 'astro-lite',
+    name: 'minimal-astro',
 
     // Handle .astro files
     load(id) {
@@ -362,7 +362,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         return Array.from(affectedModules);
       } catch (error) {
         // If parsing fails, do a full reload
-        console.error(`[astro-lite] HMR error for ${ctx.file}:`, error);
+        console.error(`[minimal-astro] HMR error for ${ctx.file}:`, error);
 
         // Invalidate cache for this file
         cache.invalidate(ctx.file);

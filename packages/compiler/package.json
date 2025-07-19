@@ -1,11 +1,11 @@
 {
-  "name": "@astro-lite/compiler",
+  "name": "@minimal-astro/compiler",
   "version": "0.0.1",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "astro-lite": "./dist/bin/astro-lite.js"
+    "minimal-astro": "./dist/bin/minimal-astro.js"
   },
   "exports": {
     ".": {

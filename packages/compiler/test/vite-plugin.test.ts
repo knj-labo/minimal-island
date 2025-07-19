@@ -8,7 +8,7 @@ describe('Vite Plugin', () => {
     test('should create a Vite plugin with correct name', () => {
       const plugin = astroVitePlugin();
 
-      expect(plugin.name).toBe('astro-lite');
+      expect(plugin.name).toBe('minimal-astro');
       expect(typeof plugin.transform).toBe('function');
       expect(typeof plugin.handleHotUpdate).toBe('function');
     });

@@ -1,4 +1,4 @@
-import { astroVitePlugin } from '@astro-lite/compiler';
+import { astroVitePlugin } from '@minimal-astro/compiler';
 import { defineConfig } from 'vite';
 
 export default defineConfig({

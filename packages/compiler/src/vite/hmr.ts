@@ -149,14 +149,14 @@ if (import.meta.hot) {
     // Handle module update
     if (newModule) {
       // Update the component
-      console.log('[astro-lite] Hot updated:', ${JSON.stringify(filePath)});
+      console.log('[minimal-astro] Hot updated:', ${JSON.stringify(filePath)});
     }
   });
 
   // Listen for custom astro-update events
   import.meta.hot.on('astro-update', (data) => {
     if (data.file === ${JSON.stringify(filePath)}) {
-      console.log('[astro-lite] Component updated:', data);
+      console.log('[minimal-astro] Component updated:', data);
       // In a full implementation, this would update the DOM
     }
   });
