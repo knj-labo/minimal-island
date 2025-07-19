@@ -38,45 +38,45 @@ export async function benchmark(
   options: BenchmarkOptions = {}
 ): Promise<BenchmarkResult> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
+
   // Force garbage collection if available
   if (opts.collectGC && global.gc) {
     global.gc();
   }
-  
+
   const memoryBefore = opts.measureMemory ? process.memoryUsage().heapUsed : 0;
-  
+
   // Warmup runs
   for (let i = 0; i < opts.warmup; i++) {
     await fn();
   }
-  
+
   // Force GC after warmup
   if (opts.collectGC && global.gc) {
     global.gc();
   }
-  
+
   const times: number[] = [];
   const startTime = performance.now();
-  
+
   // Benchmark runs
   for (let i = 0; i < opts.iterations; i++) {
     const iterStart = performance.now();
     await fn();
     const iterEnd = performance.now();
     times.push(iterEnd - iterStart);
-    
+
     // Check timeout
     if (performance.now() - startTime > opts.timeout) {
       break;
     }
   }
-  
+
   const endTime = performance.now();
   const memoryAfter = opts.measureMemory ? process.memoryUsage().heapUsed : 0;
-  
+
   times.sort((a, b) => a - b);
-  
+
   return {
     name,
     duration: endTime - startTime,
@@ -98,7 +98,7 @@ export async function benchmarkThroughput(
   options: BenchmarkOptions = {}
 ): Promise<BenchmarkResult> {
   const result = await benchmark(name, fn, options);
-  
+
   return {
     ...result,
     throughput: itemCount / (result.averageTime / 1000), // items per second
@@ -122,7 +122,7 @@ export async function compare(
 }> {
   const baseline = await benchmark(name1, fn1, options);
   const comparison = await benchmark(name2, fn2, options);
-  
+
   return {
     baseline,
     comparison,
@@ -134,32 +134,56 @@ export async function compare(
 /**
  * Benchmark suite for running multiple benchmarks
  */
-export class BenchmarkSuite {
-  private benchmarks: Array<{
+export function createBenchmarkSuite() {
+  const benchmarks: Array<{
     name: string;
     fn: () => any | Promise<any>;
     options?: BenchmarkOptions;
   }> = [];
-  
+
+  return {
+    add(name: string, fn: () => any | Promise<any>, options?: BenchmarkOptions) {
+      benchmarks.push({ name, fn, options });
+      return this;
+    },
+
+    async run(): Promise<BenchmarkResult[]> {
+      const results: BenchmarkResult[] = [];
+
+      for (const { name, fn, options } of benchmarks) {
+        console.log(`Running benchmark: ${name}`);
+        const result = await benchmark(name, fn, options);
+        results.push(result);
+      }
+
+      return results;
+    },
+
+    clear() {
+      benchmarks.length = 0;
+      return this;
+    },
+  };
+}
+
+/**
+ * Legacy class for backward compatibility
+ * @deprecated Use createBenchmarkSuite() instead
+ */
+export class BenchmarkSuite {
+  private suite = createBenchmarkSuite();
+
   add(name: string, fn: () => any | Promise<any>, options?: BenchmarkOptions): this {
-    this.benchmarks.push({ name, fn, options });
+    this.suite.add(name, fn, options);
     return this;
   }
-  
+
   async run(): Promise<BenchmarkResult[]> {
-    const results: BenchmarkResult[] = [];
-    
-    for (const { name, fn, options } of this.benchmarks) {
-      console.log(`Running benchmark: ${name}`);
-      const result = await benchmark(name, fn, options);
-      results.push(result);
-    }
-    
-    return results;
+    return this.suite.run();
   }
-  
+
   clear(): this {
-    this.benchmarks = [];
+    this.suite.clear();
     return this;
   }
 }
@@ -169,11 +193,11 @@ export class BenchmarkSuite {
  */
 export function formatResults(results: BenchmarkResult[]): string {
   if (results.length === 0) return 'No benchmark results';
-  
+
   const lines: string[] = [];
   lines.push('Benchmark Results:');
   lines.push('='.repeat(50));
-  
+
   for (const result of results) {
     lines.push(`${result.name}:`);
     lines.push(`  Iterations: ${result.iterations}`);
@@ -181,111 +205,167 @@ export function formatResults(results: BenchmarkResult[]): string {
     lines.push(`  Min time: ${result.minTime.toFixed(2)}ms`);
     lines.push(`  Max time: ${result.maxTime.toFixed(2)}ms`);
     lines.push(`  Memory used: ${(result.memoryUsed / 1024 / 1024).toFixed(2)}MB`);
-    
+
     if (result.throughput) {
       lines.push(`  Throughput: ${result.throughput.toFixed(0)} items/sec`);
     }
-    
+
     lines.push('');
   }
-  
+
   return lines.join('\n');
 }
 
 /**
  * Memory usage tracker
  */
-export class MemoryTracker {
-  private snapshots: Array<{ label: string; memory: NodeJS.MemoryUsage; timestamp: number }> = [];
-  
-  snapshot(label: string): void {
-    this.snapshots.push({
-      label,
-      memory: process.memoryUsage(),
-      timestamp: Date.now(),
-    });
-  }
-  
-  getReport(): string {
-    if (this.snapshots.length === 0) return 'No memory snapshots';
-    
-    const lines: string[] = [];
-    lines.push('Memory Usage Report:');
-    lines.push('='.repeat(50));
-    
-    for (let i = 0; i < this.snapshots.length; i++) {
-      const snapshot = this.snapshots[i];
-      const { heapUsed, heapTotal, external, rss } = snapshot.memory;
-      
-      lines.push(`${snapshot.label} (${new Date(snapshot.timestamp).toISOString()}):`);
-      lines.push(`  RSS: ${(rss / 1024 / 1024).toFixed(2)}MB`);
-      lines.push(`  Heap Used: ${(heapUsed / 1024 / 1024).toFixed(2)}MB`);
-      lines.push(`  Heap Total: ${(heapTotal / 1024 / 1024).toFixed(2)}MB`);
-      lines.push(`  External: ${(external / 1024 / 1024).toFixed(2)}MB`);
-      
-      if (i > 0) {
-        const prev = this.snapshots[i - 1];
-        const heapDiff = heapUsed - prev.memory.heapUsed;
-        const timeDiff = snapshot.timestamp - prev.timestamp;
-        
-        lines.push(`  Heap Diff: ${(heapDiff / 1024 / 1024).toFixed(2)}MB`);
-        lines.push(`  Time Diff: ${timeDiff}ms`);
+export function createMemoryTracker() {
+  const snapshots: Array<{ label: string; memory: NodeJS.MemoryUsage; timestamp: number }> = [];
+
+  return {
+    snapshot(label: string): void {
+      snapshots.push({
+        label,
+        memory: process.memoryUsage(),
+        timestamp: Date.now(),
+      });
+    },
+
+    getReport(): string {
+      if (snapshots.length === 0) return 'No memory snapshots';
+
+      const lines: string[] = [];
+      lines.push('Memory Usage Report:');
+      lines.push('='.repeat(50));
+
+      for (let i = 0; i < snapshots.length; i++) {
+        const snapshot = snapshots[i];
+        const { heapUsed, heapTotal, external, rss } = snapshot.memory;
+
+        lines.push(`${snapshot.label} (${new Date(snapshot.timestamp).toISOString()}):`);
+        lines.push(`  RSS: ${(rss / 1024 / 1024).toFixed(2)}MB`);
+        lines.push(`  Heap Used: ${(heapUsed / 1024 / 1024).toFixed(2)}MB`);
+        lines.push(`  Heap Total: ${(heapTotal / 1024 / 1024).toFixed(2)}MB`);
+        lines.push(`  External: ${(external / 1024 / 1024).toFixed(2)}MB`);
+
+        if (i > 0) {
+          const prev = snapshots[i - 1];
+          const heapDiff = heapUsed - prev.memory.heapUsed;
+          const timeDiff = snapshot.timestamp - prev.timestamp;
+
+          lines.push(`  Heap Diff: ${(heapDiff / 1024 / 1024).toFixed(2)}MB`);
+          lines.push(`  Time Diff: ${timeDiff}ms`);
+        }
+
+        lines.push('');
       }
-      
-      lines.push('');
-    }
-    
-    return lines.join('\n');
+
+      return lines.join('\n');
+    },
+
+    clear(): void {
+      snapshots.length = 0;
+    },
+  };
+}
+
+/**
+ * Legacy class for backward compatibility
+ * @deprecated Use createMemoryTracker() instead
+ */
+export class MemoryTracker {
+  private tracker = createMemoryTracker();
+
+  snapshot(label: string): void {
+    this.tracker.snapshot(label);
   }
-  
+
+  getReport(): string {
+    return this.tracker.getReport();
+  }
+
   clear(): void {
-    this.snapshots = [];
+    this.tracker.clear();
   }
 }
 
 /**
  * Performance regression detector
  */
+export function createRegressionDetector() {
+  const baselines = new Map<string, BenchmarkResult>();
+
+  return {
+    setBaseline(name: string, result: BenchmarkResult): void {
+      baselines.set(name, result);
+    },
+
+    checkRegression(
+      name: string,
+      result: BenchmarkResult,
+      threshold = 0.1 // 10% slower is considered regression
+    ): {
+      isRegression: boolean;
+      slowdown: number;
+      baseline?: BenchmarkResult;
+    } {
+      const baseline = baselines.get(name);
+
+      if (!baseline) {
+        return { isRegression: false, slowdown: 0 };
+      }
+
+      const slowdown = (result.averageTime - baseline.averageTime) / baseline.averageTime;
+
+      return {
+        isRegression: slowdown > threshold,
+        slowdown,
+        baseline,
+      };
+    },
+
+    saveBaselines(filepath: string): void {
+      const data = JSON.stringify(Array.from(baselines.entries()), null, 2);
+      // In a real implementation, you'd write to the filesystem
+      console.log(`Saving baselines to ${filepath}:`, data);
+    },
+
+    loadBaselines(filepath: string): void {
+      // In a real implementation, you'd read from the filesystem
+      console.log(`Loading baselines from ${filepath}`);
+    },
+  };
+}
+
+/**
+ * Legacy class for backward compatibility
+ * @deprecated Use createRegressionDetector() instead
+ */
 export class RegressionDetector {
-  private baselines = new Map<string, BenchmarkResult>();
-  
+  private detector = createRegressionDetector();
+
   setBaseline(name: string, result: BenchmarkResult): void {
-    this.baselines.set(name, result);
+    this.detector.setBaseline(name, result);
   }
-  
+
   checkRegression(
     name: string,
     result: BenchmarkResult,
-    threshold = 0.1 // 10% slower is considered regression
+    threshold = 0.1
   ): {
     isRegression: boolean;
     slowdown: number;
     baseline?: BenchmarkResult;
   } {
-    const baseline = this.baselines.get(name);
-    
-    if (!baseline) {
-      return { isRegression: false, slowdown: 0 };
-    }
-    
-    const slowdown = (result.averageTime - baseline.averageTime) / baseline.averageTime;
-    
-    return {
-      isRegression: slowdown > threshold,
-      slowdown,
-      baseline,
-    };
+    return this.detector.checkRegression(name, result, threshold);
   }
-  
+
   saveBaselines(filepath: string): void {
-    const data = JSON.stringify(Array.from(this.baselines.entries()), null, 2);
-    // In a real implementation, you'd write to the filesystem
-    console.log(`Saving baselines to ${filepath}:`, data);
+    this.detector.saveBaselines(filepath);
   }
-  
+
   loadBaselines(filepath: string): void {
-    // In a real implementation, you'd read from the filesystem
-    console.log(`Loading baselines from ${filepath}`);
+    this.detector.loadBaselines(filepath);
   }
 }
 
@@ -298,16 +378,16 @@ export async function quickBench(
   iterations = 10
 ): Promise<number> {
   const start = performance.now();
-  
+
   for (let i = 0; i < iterations; i++) {
     await fn();
   }
-  
+
   const end = performance.now();
   const avgTime = (end - start) / iterations;
-  
+
   console.log(`${name}: ${avgTime.toFixed(2)}ms avg (${iterations} iterations)`);
-  
+
   return avgTime;
 }
 
@@ -318,17 +398,19 @@ export function measureTime<T>(fn: () => T): { result: T; time: number } {
   const start = performance.now();
   const result = fn();
   const end = performance.now();
-  
+
   return { result, time: end - start };
 }
 
 /**
  * Async version of measureTime
  */
-export async function measureTimeAsync<T>(fn: () => Promise<T>): Promise<{ result: T; time: number }> {
+export async function measureTimeAsync<T>(
+  fn: () => Promise<T>
+): Promise<{ result: T; time: number }> {
   const start = performance.now();
   const result = await fn();
   const end = performance.now();
-  
+
   return { result, time: end - start };
 }

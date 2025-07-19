@@ -196,48 +196,45 @@ export const createMetadataStore = <K extends object, V>() => {
 /**
  * Memory-efficient string pool for commonly used strings
  */
-export class StringPool {
-  private strings = new Map<string, string>();
-  private maxSize: number;
+export function createStringPool(maxSize = 1000) {
+  const strings = new Map<string, string>();
 
-  constructor(maxSize = 1000) {
-    this.maxSize = maxSize;
-  }
-
-  intern(str: string): string {
-    const existing = this.strings.get(str);
-    if (existing) {
-      return existing;
-    }
-
-    if (this.strings.size >= this.maxSize) {
-      // Simple LRU-like behavior: clear half when full
-      const entries = Array.from(this.strings.entries());
-      this.strings.clear();
-      
-      // Keep the second half
-      for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
-        this.strings.set(entries[i][0], entries[i][1]);
+  return {
+    intern: (str: string): string => {
+      const existing = strings.get(str);
+      if (existing) {
+        return existing;
       }
-    }
 
-    this.strings.set(str, str);
-    return str;
-  }
+      if (strings.size >= maxSize) {
+        // Simple LRU-like behavior: clear half when full
+        const entries = Array.from(strings.entries());
+        strings.clear();
 
-  clear(): void {
-    this.strings.clear();
-  }
+        // Keep the second half
+        for (let i = Math.floor(entries.length / 2); i < entries.length; i++) {
+          strings.set(entries[i][0], entries[i][1]);
+        }
+      }
 
-  size(): number {
-    return this.strings.size;
-  }
+      strings.set(str, str);
+      return str;
+    },
+
+    clear: (): void => {
+      strings.clear();
+    },
+
+    size: (): number => {
+      return strings.size;
+    },
+  };
 }
 
 /**
  * Global string pool for interning commonly used strings
  */
-export const globalStringPool = new StringPool();
+export const globalStringPool = createStringPool();
 
 /**
  * Pool statistics for monitoring
@@ -251,7 +248,7 @@ export interface PoolStats {
 export function getPoolStats(): PoolStats {
   return {
     totalPools: 7,
-    totalObjects: 
+    totalObjects:
       positionPool.size() +
       sourceSpanPool.size() +
       attributePool.size() +

@@ -371,30 +371,30 @@ function scanAttribute(state: TokenizerState): [TokenizerState, Token | null] {
 function scanText(state: TokenizerState): [TokenizerState, Token | null] {
   const start = getCurrentPosition(state);
   const startPos = state.position;
-  
+
   // Fast scan using indexOf for common delimiters
   const source = state.source;
   let nextLt = source.indexOf('<', startPos);
   let nextBrace = source.indexOf('{', startPos);
-  
+
   if (nextLt === -1) nextLt = source.length;
   if (nextBrace === -1) nextBrace = source.length;
-  
+
   const endPos = Math.min(nextLt, nextBrace);
-  
+
   if (endPos > startPos) {
     // Fast forward position tracking
     const text = source.slice(startPos, endPos);
     const newlines = text.split('\n').length - 1;
     const lastNewlineIndex = text.lastIndexOf('\n');
-    
+
     const newState: TokenizerState = {
       ...state,
       position: endPos,
       line: state.line + newlines,
       column: newlines > 0 ? text.length - lastNewlineIndex : state.column + text.length,
     };
-    
+
     return [
       newState,
       {
@@ -417,24 +417,26 @@ function scanTextOptimized(state: TokenizerState): [TokenizerState, Token | null
   const startPos = state.position;
   const source = state.source;
   let pos = startPos;
-  
+
   // Fast character scanning without function calls
   while (pos < source.length) {
     const charCode = source.charCodeAt(pos);
-    if (charCode === 60 || charCode === 123) { // '<' or '{'
+    if (charCode === 60 || charCode === 123) {
+      // '<' or '{'
       break;
     }
     pos++;
   }
-  
+
   if (pos > startPos) {
     // Count newlines efficiently
     let line = state.line;
     let column = state.column;
     let lastNewlinePos = -1;
-    
+
     for (let i = startPos; i < pos; i++) {
-      if (source.charCodeAt(i) === 10) { // '\n'
+      if (source.charCodeAt(i) === 10) {
+        // '\n'
         line++;
         column = 1;
         lastNewlinePos = i;
@@ -442,18 +444,18 @@ function scanTextOptimized(state: TokenizerState): [TokenizerState, Token | null
         column++;
       }
     }
-    
+
     if (lastNewlinePos !== -1) {
       column = pos - lastNewlinePos;
     }
-    
+
     const newState: TokenizerState = {
       ...state,
       position: pos,
       line,
       column,
     };
-    
+
     return [
       newState,
       {
@@ -537,7 +539,10 @@ function createTokenPool(): TokenPool {
         // Reset token properties
         token.type = TokenType.EOF;
         token.value = '';
-        token.loc = { start: { line: 0, column: 0, offset: 0 }, end: { line: 0, column: 0, offset: 0 } };
+        token.loc = {
+          start: { line: 0, column: 0, offset: 0 },
+          end: { line: 0, column: 0, offset: 0 },
+        };
         return token;
       }
       return {
@@ -587,7 +592,7 @@ export function tokenize(source: string): Token[] {
   while (state.position < state.source.length) {
     const [newState, token] = nextTokenOptimized(state, tokenPool);
     state = newState;
-    
+
     if (token && token.type !== TokenType.EOF) {
       tokens.push(token);
     }
@@ -596,7 +601,10 @@ export function tokenize(source: string): Token[] {
   return tokens;
 }
 
-function nextTokenOptimized(state: TokenizerState, tokenPool: TokenPool): [TokenizerState, Token | null] {
+function nextTokenOptimized(
+  state: TokenizerState,
+  tokenPool: TokenPool
+): [TokenizerState, Token | null] {
   if (state.position >= state.source.length) {
     const token = tokenPool.acquire();
     token.type = TokenType.EOF;
@@ -627,7 +635,7 @@ function nextTokenOptimized(state: TokenizerState, tokenPool: TokenPool): [Token
       // Use jump table for fast character dispatch
       const char = peek(state);
       const handler = getCharacterHandler(char);
-      
+
       if (handler) {
         const [newState, token] = handler(state);
         if (token) return [newState, token];

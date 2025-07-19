@@ -56,99 +56,99 @@ function quickHash(str: string): string {
   return hash.toString(36);
 }
 
-// Cache manager class
-class PluginCache {
-  private astCache = new Map<string, CacheEntry<ParseCache>>();
-  private transformCache = new Map<string, CacheEntry<TransformCache>>();
-  private dependencyGraph = new Map<string, Set<string>>();
-  private maxAge = 5 * 60 * 1000; // 5 minutes
+// Cache manager factory function
+function createPluginCache(maxAge = 5 * 60 * 1000) {
+  const astCache = new Map<string, CacheEntry<ParseCache>>();
+  const transformCache = new Map<string, CacheEntry<TransformCache>>();
+  const dependencyGraph = new Map<string, Set<string>>();
 
-  getAst(id: string, code: string): ParseCache | null {
-    const hash = quickHash(code);
-    const entry = this.astCache.get(id);
-    
-    if (entry && entry.hash === hash && !this.isExpired(entry)) {
-      return entry.value;
-    }
-    
-    return null;
-  }
+  const isExpired = (entry: CacheEntry<any>): boolean => {
+    return Date.now() - entry.timestamp > maxAge;
+  };
 
-  setAst(id: string, code: string, ast: any, diagnostics: any[]): void {
-    const hash = quickHash(code);
-    this.astCache.set(id, {
-      value: { ast, diagnostics },
-      hash,
-      timestamp: Date.now(),
-    });
-  }
+  return {
+    getAst(id: string, code: string): ParseCache | null {
+      const hash = quickHash(code);
+      const entry = astCache.get(id);
 
-  getTransform(id: string, code: string): TransformCache | null {
-    const hash = quickHash(code);
-    const entry = this.transformCache.get(id);
-    
-    if (entry && entry.hash === hash && !this.isExpired(entry)) {
-      return entry.value;
-    }
-    
-    return null;
-  }
-
-  setTransform(id: string, code: string, result: TransformCache): void {
-    const hash = quickHash(code);
-    this.transformCache.set(id, {
-      value: result,
-      hash,
-      timestamp: Date.now(),
-    });
-  }
-
-  setDependencies(id: string, dependencies: string[]): void {
-    this.dependencyGraph.set(id, new Set(dependencies));
-  }
-
-  getDependents(id: string): string[] {
-    const dependents: string[] = [];
-    for (const [file, deps] of this.dependencyGraph.entries()) {
-      if (deps.has(id)) {
-        dependents.push(file);
+      if (entry && entry.hash === hash && !isExpired(entry)) {
+        return entry.value;
       }
-    }
-    return dependents;
-  }
 
-  invalidate(id: string): void {
-    this.astCache.delete(id);
-    this.transformCache.delete(id);
-    this.dependencyGraph.delete(id);
-  }
+      return null;
+    },
 
-  invalidateAll(): void {
-    this.astCache.clear();
-    this.transformCache.clear();
-    this.dependencyGraph.clear();
-  }
+    setAst(id: string, code: string, ast: any, diagnostics: any[]): void {
+      const hash = quickHash(code);
+      astCache.set(id, {
+        value: { ast, diagnostics },
+        hash,
+        timestamp: Date.now(),
+      });
+    },
 
-  private isExpired(entry: CacheEntry<any>): boolean {
-    return Date.now() - entry.timestamp > this.maxAge;
-  }
+    getTransform(id: string, code: string): TransformCache | null {
+      const hash = quickHash(code);
+      const entry = transformCache.get(id);
 
-  // Cleanup expired entries
-  cleanup(): void {
-    const now = Date.now();
-    
-    for (const [id, entry] of this.astCache.entries()) {
-      if (now - entry.timestamp > this.maxAge) {
-        this.astCache.delete(id);
+      if (entry && entry.hash === hash && !isExpired(entry)) {
+        return entry.value;
       }
-    }
-    
-    for (const [id, entry] of this.transformCache.entries()) {
-      if (now - entry.timestamp > this.maxAge) {
-        this.transformCache.delete(id);
+
+      return null;
+    },
+
+    setTransform(id: string, code: string, result: TransformCache): void {
+      const hash = quickHash(code);
+      transformCache.set(id, {
+        value: result,
+        hash,
+        timestamp: Date.now(),
+      });
+    },
+
+    setDependencies(id: string, dependencies: string[]): void {
+      dependencyGraph.set(id, new Set(dependencies));
+    },
+
+    getDependents(id: string): string[] {
+      const dependents: string[] = [];
+      for (const [file, deps] of dependencyGraph.entries()) {
+        if (deps.has(id)) {
+          dependents.push(file);
+        }
       }
-    }
-  }
+      return dependents;
+    },
+
+    invalidate(id: string): void {
+      astCache.delete(id);
+      transformCache.delete(id);
+      dependencyGraph.delete(id);
+    },
+
+    invalidateAll(): void {
+      astCache.clear();
+      transformCache.clear();
+      dependencyGraph.clear();
+    },
+
+    cleanup(): void {
+      const now = Date.now();
+
+      for (const [id, entry] of astCache.entries()) {
+        if (now - entry.timestamp > maxAge) {
+          astCache.delete(id);
+        }
+      }
+
+      for (const [id, entry] of transformCache.entries()) {
+        if (now - entry.timestamp > maxAge) {
+          transformCache.delete(id);
+        }
+      }
+    },
+  };
 }
 
 export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
@@ -156,9 +156,9 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
   // Store HMR state for each file
   const hmrStateMap = new Map<string, AstroHmrState>();
-  
+
   // Initialize cache
-  const cache = new PluginCache();
+  const cache = createPluginCache();
 
   // Cleanup interval
   const cleanupInterval = setInterval(() => {
@@ -168,21 +168,21 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
   // Extract dependencies from AST
   function extractDependencies(ast: any): string[] {
     const dependencies: string[] = [];
-    
+
     function walkNode(node: any) {
       if (!node) return;
-      
+
       if (node.type === 'Component' && node.tag) {
         // Component imports (e.g., <ComponentName />)
         dependencies.push(node.tag);
       }
-      
+
       // Recursively walk children
       if (node.children) {
         node.children.forEach(walkNode);
       }
     }
-    
+
     // Extract from frontmatter
     if (ast.children) {
       const frontmatter = ast.children.find((child: any) => child.type === 'Frontmatter');
@@ -198,9 +198,9 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         }
       }
     }
-    
+
     walkNode(ast);
-    
+
     return [...new Set(dependencies)]; // Remove duplicates
   }
 
@@ -238,7 +238,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
           parseResult = parseAstro(code, {
             filename: id,
           });
-          
+
           // Cache the AST
           cache.setAst(id, code, parseResult.ast, parseResult.diagnostics);
         }
@@ -307,7 +307,7 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
         const allAffected = [ctx.file, ...dependents];
 
         // Invalidate cache for all affected files
-        allAffected.forEach(file => cache.invalidate(file));
+        allAffected.forEach((file) => cache.invalidate(file));
 
         // Read and parse the updated file
         const content = await ctx.read();
@@ -323,10 +323,10 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
 
         // Get all affected modules from Vite
         const affectedModules = new Set<any>();
-        
+
         // Add the changed file's modules
-        ctx.modules.forEach(mod => affectedModules.add(mod));
-        
+        ctx.modules.forEach((mod) => affectedModules.add(mod));
+
         // Add modules for dependent files
         for (const depFile of dependents) {
           const depModule = ctx.server.moduleGraph.getModuleById(depFile);
@@ -363,10 +363,10 @@ export function astroVitePlugin(options: AstroVitePluginOptions = {}): Plugin {
       } catch (error) {
         // If parsing fails, do a full reload
         console.error(`[astro-lite] HMR error for ${ctx.file}:`, error);
-        
+
         // Invalidate cache for this file
         cache.invalidate(ctx.file);
-        
+
         ctx.server.ws.send({
           type: 'full-reload',
         });

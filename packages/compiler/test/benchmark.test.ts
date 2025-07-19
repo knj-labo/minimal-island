@@ -1,9 +1,9 @@
-import { describe, test, expect } from 'bun:test';
-import { parseAstro } from '../src/parse.js';
+import { describe, expect, test } from 'bun:test';
 import { buildHtml, escapeHtmlFast, escapeHtmlLegacy } from '../src/html-builder.js';
+import { parseAstro } from '../src/parse.js';
 import { tokenize, tokenizeLegacy } from '../src/tokenizer.js';
-import { benchmark, compare, BenchmarkSuite, formatResults } from '../src/utils/benchmark.js';
-import { getPoolStats, clearAllPools } from '../src/utils/object-pool.js';
+import { BenchmarkSuite, benchmark, compare, formatResults } from '../src/utils/benchmark.js';
+import { clearAllPools, getPoolStats } from '../src/utils/object-pool.js';
 
 // Test data
 const smallAstroFile = `---
@@ -79,7 +79,7 @@ describe('Performance Benchmarks', () => {
     );
 
     console.log(`HTML escape speedup: ${comparison.speedup.toFixed(2)}x`);
-    
+
     // Optimized should be faster
     expect(comparison.speedup).toBeGreaterThan(1.0);
   });
@@ -105,11 +105,10 @@ describe('Performance Benchmarks', () => {
   });
 
   test('should demonstrate end-to-end performance with large files', async () => {
-    const parseResult = await benchmark(
-      'Parse Large File',
-      () => parseAstro(largeAstroFile),
-      { iterations: 10, warmup: 2 }
-    );
+    const parseResult = await benchmark('Parse Large File', () => parseAstro(largeAstroFile), {
+      iterations: 10,
+      warmup: 2,
+    });
 
     const buildResult = await benchmark(
       'Build Large HTML',
@@ -125,12 +124,12 @@ describe('Performance Benchmarks', () => {
 
     // Should complete in reasonable time
     expect(parseResult.averageTime).toBeLessThan(100); // 100ms max
-    expect(buildResult.averageTime).toBeLessThan(50);  // 50ms max
+    expect(buildResult.averageTime).toBeLessThan(50); // 50ms max
   });
 
   test('should demonstrate object pool effectiveness', async () => {
     clearAllPools();
-    
+
     const initialStats = getPoolStats();
     expect(initialStats.totalObjects).toBe(0);
 
@@ -149,25 +148,29 @@ describe('Performance Benchmarks', () => {
 
   test('should run comprehensive benchmark suite', async () => {
     const suite = new BenchmarkSuite();
-    
+
     suite
       .add('Small File Parse', () => parseAstro(smallAstroFile), { iterations: 50 })
       .add('Large File Parse', () => parseAstro(largeAstroFile), { iterations: 10 })
-      .add('HTML Build', () => {
-        const { ast } = parseAstro(smallAstroFile);
-        return buildHtml(ast);
-      }, { iterations: 50 })
+      .add(
+        'HTML Build',
+        () => {
+          const { ast } = parseAstro(smallAstroFile);
+          return buildHtml(ast);
+        },
+        { iterations: 50 }
+      )
       .add('Tokenize', () => tokenize(smallAstroFile), { iterations: 100 })
       .add('HTML Escape', () => escapeHtmlFast(htmlWithSpecialChars), { iterations: 1000 });
 
     const results = await suite.run();
     const report = formatResults(results);
-    
+
     console.log('\n' + report);
-    
+
     // All benchmarks should complete
     expect(results).toHaveLength(5);
-    results.forEach(result => {
+    results.forEach((result) => {
       expect(result.iterations).toBeGreaterThan(0);
       expect(result.averageTime).toBeGreaterThan(0);
     });
@@ -175,47 +178,46 @@ describe('Performance Benchmarks', () => {
 
   test('should demonstrate memory efficiency', async () => {
     const memoryBefore = process.memoryUsage().heapUsed;
-    
+
     // Process many files
     for (let i = 0; i < 100; i++) {
       const { ast } = parseAstro(smallAstroFile);
       buildHtml(ast);
     }
-    
+
     // Force garbage collection if available
     if (global.gc) {
       global.gc();
     }
-    
+
     const memoryAfter = process.memoryUsage().heapUsed;
     const memoryIncrease = memoryAfter - memoryBefore;
-    
+
     console.log(`Memory increase after 100 files: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`);
-    
+
     // Should not leak too much memory
     expect(memoryIncrease).toBeLessThan(50 * 1024 * 1024); // 50MB max
   });
 
   test('should demonstrate consistent performance', async () => {
     const results: number[] = [];
-    
+
     // Run multiple times to check consistency
     for (let i = 0; i < 10; i++) {
-      const result = await benchmark(
-        'Consistency Test',
-        () => parseAstro(smallAstroFile),
-        { iterations: 20, warmup: 5 }
-      );
+      const result = await benchmark('Consistency Test', () => parseAstro(smallAstroFile), {
+        iterations: 20,
+        warmup: 5,
+      });
       results.push(result.averageTime);
     }
-    
+
     const mean = results.reduce((a, b) => a + b, 0) / results.length;
     const variance = results.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / results.length;
     const stdDev = Math.sqrt(variance);
     const coefficientOfVariation = stdDev / mean;
-    
+
     console.log(`Performance consistency - CV: ${(coefficientOfVariation * 100).toFixed(1)}%`);
-    
+
     // Should be reasonably consistent (CV < 20%)
     expect(coefficientOfVariation).toBeLessThan(0.2);
   });

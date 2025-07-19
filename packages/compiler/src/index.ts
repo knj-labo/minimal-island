@@ -1,6 +1,6 @@
 // Main compiler exports
 export { parseAstro } from './parse.js';
-export { buildHtml, buildHtmlToStream, StreamingHtmlBuilder } from './html-builder.js';
+export { buildHtml, buildHtmlToStream, createStreamingHtmlBuilder } from './html-builder.js';
 export { tokenize } from './tokenizer.js';
 export { build } from './cli/build.js';
 
@@ -10,31 +10,42 @@ export { transformAstroToJs, extractClientScript, hasClientDirectives } from './
 export { analyzeAstForHmr, handleAstroHmr, canHotReload, injectHmrCode } from './vite/hmr.js';
 
 // Performance utilities
-export { 
-  createObjectPool, 
-  positionPool, 
-  sourceSpanPool, 
-  attributePool, 
-  arrayPool, 
-  getPoolStats, 
-  clearAllPools 
+export {
+  createObjectPool,
+  positionPool,
+  sourceSpanPool,
+  attributePool,
+  arrayPool,
+  createStringPool,
+  globalStringPool,
+  getPoolStats,
+  clearAllPools,
 } from './utils/object-pool.js';
-export { 
-  benchmark, 
-  compare, 
-  BenchmarkSuite, 
-  formatResults, 
-  quickBench, 
-  measureTime, 
-  measureTimeAsync 
+export {
+  benchmark,
+  compare,
+  BenchmarkSuite,
+  createBenchmarkSuite,
+  MemoryTracker,
+  createMemoryTracker,
+  RegressionDetector,
+  createRegressionDetector,
+  formatResults,
+  quickBench,
+  measureTime,
+  measureTimeAsync,
 } from './utils/benchmark.js';
-export { 
-  LazyError, 
-  LazyParseError, 
-  createLazyParseError, 
-  createLazyTransformError, 
-  ErrorAggregator, 
-  ErrorFactories 
+export {
+  LazyError,
+  LazyParseError,
+  createLazyError,
+  createLazyParseError,
+  createLazyTransformError,
+  createLazyParseErrorWithContext,
+  createLazyTransformErrorWithContext,
+  ErrorAggregator,
+  createErrorAggregator,
+  ErrorFactories,
 } from './utils/lazy-error.js';
 
 // Type exports
